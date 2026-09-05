@@ -14,10 +14,14 @@ public class PathDrawer : MonoBehaviour
     private LineRenderer activeLine;
 
     private Dictionary<Color, ColorNetwork> colorNetworks = new Dictionary<Color, ColorNetwork>();
+    private List<LineRenderer> activeLines = new List<LineRenderer>();
 
     public int MoveCount { get; private set; } = 0;
 
     private Camera cam;
+
+    // PathDrawer.cs içine event ekle
+    public static event System.Action<int> OnLevelCompleted; // parametre: kullanılan hamle sayısı
 
     private void Awake()
     {
@@ -58,7 +62,6 @@ public class PathDrawer : MonoBehaviour
 
         ColorNetwork network = GetOrCreateNetwork(currentColor);
 
-        // Tıklanan taş zaten ağa bağlıysa sıfırdan çizmek için temizle
         if (network.ContainsCell(hitCell))
         {
             network.Clear();
@@ -72,6 +75,8 @@ public class PathDrawer : MonoBehaviour
         activeLine.startColor = currentColor;
         activeLine.endColor = currentColor;
 
+        activeLines.Add(activeLine);
+
         UpdateLineVisual();
     }
 
@@ -83,10 +88,8 @@ public class PathDrawer : MonoBehaviour
         CellView lastCell = currentPath[currentPath.Count - 1];
         if (hitCell == lastCell) return;
 
-        // 1. Çökmüş Buz Kontrolü
         if (hitCell.IsCollapsed) return;
 
-        // 2. Geri Alma (Backtracking)
         if (currentPath.Count > 1 && hitCell == currentPath[currentPath.Count - 2])
         {
             currentPath.RemoveAt(currentPath.Count - 1);
@@ -94,10 +97,8 @@ public class PathDrawer : MonoBehaviour
             return;
         }
 
-        // 3. Komşuluk Kontrolü
         if (!IsAdjacent(lastCell.GridPos, hitCell.GridPos)) return;
 
-        // 4. Köprüden Çıkış Kuralı
         if (lastCell.IsBridge && currentPath.Count >= 2)
         {
             CellView beforeBridge = currentPath[currentPath.Count - 2];
@@ -107,26 +108,20 @@ public class PathDrawer : MonoBehaviour
             if (inDir != outDir) return;
         }
 
-        // 5. Döngü Engeli
         if (currentPath.Contains(hitCell)) return;
 
-        // 6. Başka Taşa Basamaz
         if (hitCell.HasStone && !AreColorsSimilar(hitCell.StoneColor, currentColor)) return;
 
-        // 7. Karışım Hücresi İzni
         bool isAllowedMixInput = hitCell.IsMixCell &&
                                  (AreColorsSimilar(currentColor, hitCell.MixRule.inputColorA) ||
                                   AreColorsSimilar(currentColor, hitCell.MixRule.inputColorB));
 
         if (hitCell.IsMixCell && !isAllowedMixInput && !hitCell.IsMixActivated) return;
 
-        // 8. Kilit Kontrolü
         if (hitCell.IsLocked && !AreColorsSimilar(hitCell.AllowedColor, currentColor)) return;
 
-        // 9. Çakışma ve Köprü Kontrolü
         if (IsCellBlockedByOtherNetworks(lastCell, hitCell, currentColor)) return;
 
-        // 10. Y-Dallanma Birleşmesi
         ColorNetwork network = GetOrCreateNetwork(currentColor);
         if (network.ContainsCell(hitCell) && currentPath.Count >= 1)
         {
@@ -136,30 +131,78 @@ public class PathDrawer : MonoBehaviour
             return;
         }
 
-        // 11. Hücreyi Ekle
         currentPath.Add(hitCell);
         UpdateLineVisual();
 
-        // 12. Buz Kırılması
         if (lastCell.IsIce && !lastCell.IsCollapsed)
         {
             lastCell.CollapseIce();
         }
 
-        // 13. Tamamlama Durumları:
-        // A) Hedef taşa ulaştıysa
         if (hitCell.HasStone && AreColorsSimilar(hitCell.StoneColor, currentColor) && currentPath.Count > 1)
         {
             EndDrawing();
             return;
         }
 
-        // B) Karışım hücresine girdiyse
         if (isAllowedMixInput)
         {
             EndDrawing();
             return;
         }
+    }
+
+    public void UndoLastLine()
+    {
+        if (activeLines != null && activeLines.Count > 0)
+        {
+            LineRenderer lastLine = activeLines[activeLines.Count - 1];
+            if (lastLine != null)
+            {
+                Destroy(lastLine.gameObject);
+            }
+            activeLines.RemoveAt(activeLines.Count - 1);
+            MoveCount = Mathf.Max(0, MoveCount - 1);
+        }
+    }
+
+    public void ClearAllLines()
+    {
+        if (activeLines != null)
+        {
+            foreach (var line in activeLines)
+            {
+                if (line != null)
+                {
+                    Destroy(line.gameObject);
+                }
+            }
+            activeLines.Clear();
+        }
+
+        if (colorNetworks != null)
+        {
+            foreach (var network in colorNetworks.Values)
+            {
+                network.Clear();
+            }
+            colorNetworks.Clear();
+        }
+
+        MoveCount = 0;
+    }
+
+    // Yeni level yüklendiğinde GameUIController tarafından çağrılır.
+    // ClearAllLines() zaten tahtayı ve MoveCount'u sıfırlıyor, bu sadece isim olarak
+    // "yeni level başlangıcı" niyetini daha net ifade etmek için bir alias.
+    public void ResetState()
+    {
+        ClearAllLines();
+
+        // Eğer aktif olarak çizim yapılıyorsa (level tam ortasında değiştirildiyse) onu da iptal et
+        isDrawing = false;
+        currentPath.Clear();
+        activeLine = null;
     }
 
     private void EndDrawing()
@@ -194,14 +237,16 @@ public class PathDrawer : MonoBehaviour
                 }
             }
 
-            Debug.Log($"<color=#{ColorUtility.ToHtmlStringRGB(currentColor)}>Hat Bağlandı!</color> (Hamle: {MoveCount})");
-
             CheckMixCells();
             CheckLevelComplete();
         }
         else
         {
-            if (activeLine != null) Destroy(activeLine.gameObject);
+            if (activeLine != null)
+            {
+                activeLines.Remove(activeLine);
+                Destroy(activeLine.gameObject);
+            }
         }
     }
 
@@ -225,7 +270,6 @@ public class PathDrawer : MonoBehaviour
                 if (!mixCell.IsMixActivated)
                 {
                     mixCell.ActivateMixResult();
-                    Debug.Log($"<color=#{ColorUtility.ToHtmlStringRGB(rule.resultColor)}>🧪 KARIŞIM AKTİF OLDU! Çıkış Taşı Hazır: {mixCell.GridPos}</color>");
                 }
             }
             else
@@ -261,7 +305,6 @@ public class PathDrawer : MonoBehaviour
             return false;
         }
 
-        // Köprü Kontrolü
         int pathsUsingBridge = 0;
         bool isHorizontalIncoming = (fromCell.GridPos.y == targetCell.GridPos.y);
 
@@ -298,7 +341,6 @@ public class PathDrawer : MonoBehaviour
 
         LevelData level = gridManager.CurrentLevel;
 
-        // 1. Standart Renk Çiftlerini Kontrol Et
         foreach (var pair in level.colorPairs)
         {
             ColorNetwork net = GetNetwork(pair.color);
@@ -322,7 +364,6 @@ public class PathDrawer : MonoBehaviour
             }
         }
 
-        // 2. Karışım Sonuçlarını Kontrol Et
         if (level.mixRules != null && level.mixRules.Count > 0)
         {
             foreach (var rule in level.mixRules)
@@ -337,19 +378,10 @@ public class PathDrawer : MonoBehaviour
             }
         }
 
-        // 3. Seviye Tamamlandı!
-        int optimal = level.optimalMoves;
-        int limit = level.moveLimit;
-
-        int stars = 1;
-        if (MoveCount <= optimal) stars = 3;
-        else if (MoveCount <= limit) stars = 2;
-
-        Debug.Log($"<color=green><b>🎉 TEBRİKLER! TÜM GÖREVLER TAMAMLANDI - SEVİYE BİTTİ!</b></color>\n" +
-                  $"Kazanılan Yıldız: {stars} ★ | Hamle: {MoveCount} | Optimal: {optimal}");
+        // Tüm koşullar sağlandı: level tamamlandı
+        OnLevelCompleted?.Invoke(MoveCount);
     }
 
-    // --- Akıllı Renk ve Ağ Yardımcıları ---
     private ColorNetwork GetOrCreateNetwork(Color color)
     {
         ColorNetwork net = GetNetwork(color);
@@ -412,4 +444,31 @@ public class PathDrawer : MonoBehaviour
         }
         return null;
     }
+
+    public int GetCompletedConnectionCount()
+    {
+        if (gridManager == null || gridManager.CurrentLevel == null || gridManager.CurrentLevel.colorPairs == null)
+            return 0;
+
+        int completedCount = 0;
+        foreach (var pair in gridManager.CurrentLevel.colorPairs)
+        {
+            ColorNetwork net = GetNetwork(pair.color);
+            if (net == null) continue;
+
+            HashSet<CellView> occupied = net.GetAllOccupiedCells();
+            CellView startCell = gridManager.GetCell(pair.startPos);
+            CellView endCell = gridManager.GetCell(pair.endPos);
+
+            bool isConnected = startCell != null && endCell != null &&
+                               occupied.Contains(startCell) && occupied.Contains(endCell);
+
+            if (isConnected)
+            {
+                completedCount++;
+            }
+        }
+        return completedCount;
+    }
+
 }

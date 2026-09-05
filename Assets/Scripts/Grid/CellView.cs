@@ -41,7 +41,7 @@ public class CellView : MonoBehaviour
         gameObject.name = $"Cell_{pos.x}_{pos.y}";
 
         if (boxCollider == null) boxCollider = GetComponent<BoxCollider2D>();
-        boxCollider.size = new Vector2(cellSize, cellSize);
+        //boxCollider.size = new Vector2(cellSize, cellSize);
 
         if (stoneRenderer != null)
         {

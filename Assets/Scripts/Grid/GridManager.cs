@@ -22,6 +22,10 @@ public class GridManager : MonoBehaviour
     public CellView[,] GridCells => gridCells;
     public LevelData CurrentLevel => currentLevel;
 
+    // Yeni bir level grid'e yüklendiðinde tetiklenir.
+    // UI veya baþka sistemler bu event'e abone olarak kendini güncelleyebilir.
+    public static event System.Action<LevelData> OnLevelGenerated;
+
     private void Awake()
     {
         mainCam = Camera.main;
@@ -29,13 +33,17 @@ public class GridManager : MonoBehaviour
 
     private void Start()
     {
-        if (currentLevel != null)
+        // GameDataHolder'dan gelen bilgilere göre doðru level verisini Resources'tan yükle
+        string path = $"Levels/{GameDataHolder.SelectedDifficulty}/Level_{GameDataHolder.SelectedDifficulty}_{GameDataHolder.SelectedLevelNumber:00}";
+        LevelData loadedLevel = Resources.Load<LevelData>(path);
+
+        if (loadedLevel != null)
         {
-            GenerateGrid(currentLevel);
+            GenerateGrid(loadedLevel);
         }
         else
         {
-            Debug.LogError("GridManager: Seviye verisi (LevelData) atanmamýþ!");
+            Debug.LogError($"LevelData bulunamadý: Resources/{path}");
         }
     }
 
@@ -71,6 +79,9 @@ public class GridManager : MonoBehaviour
         PlaceColorStones(level);
         ApplySpecialCells(level);
         AdjustCamera(totalWidth, totalHeight);
+
+        // Level tamamen kurulduktan sonra dinleyicilere haber ver (UI güncellemesi vs.)
+        OnLevelGenerated?.Invoke(level);
     }
 
     private void PlaceColorStones(LevelData level)

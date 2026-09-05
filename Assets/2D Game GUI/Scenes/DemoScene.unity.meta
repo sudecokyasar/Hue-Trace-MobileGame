@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: b71fbd7fcd506dd4a96fe2ba38c23f8e
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 327060
+  packageName: 2D Game GUI
+  packageVersion: 1.0
+  assetPath: Assets/2D Game GUI/Scenes/DemoScene.unity
+  uploadId: 774520
