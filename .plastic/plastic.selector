@@ -1,0 +1,4 @@
+repository "Renk Taşı/Renk Taşı@18967445085507@cloud"
+  path "/"
+    br "/main"
+    co "/main"
