@@ -1,3 +1,4 @@
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -6,20 +7,21 @@ using UnityEngine.SceneManagement;
 
 public class GameUIController : MonoBehaviour
 {
-    [Header("�st Bilgiler (Header Info)")]
+    [Header("Üst Bilgiler (Header Info)")]
     [SerializeField] private TextMeshProUGUI levelTitleText;
     [SerializeField] private TextMeshProUGUI modeAndGridText;
     [SerializeField] private Image[] starImageComponents;
     [SerializeField] private Sprite yellowStarSprite;
     [SerializeField] private Sprite greyStarSprite;
 
-    [Header("Saya�lar (Stats)")]
+    [Header("Sayaçlar (Stats)")]
     [SerializeField] private TextMeshProUGUI moveText;
     [SerializeField] private TextMeshProUGUI optimalText;
     [SerializeField] private TextMeshProUGUI connectionText;
 
     [Header("Toplam Skor")]
     [SerializeField] private TextMeshProUGUI totalStarsText;
+    [SerializeField] private TextMeshProUGUI levelStarsText;
 
     [Header("Paneller ve Referanslar")]
     [SerializeField] private GameObject mainMenuCanvas;
@@ -27,22 +29,35 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private GridManager gridManager;
     [SerializeField] private PathDrawer pathDrawer;
 
+    [Header("Yıldız - Grid Doluluk Eşikleri")]
+    // Yıldız artık hamle sayısına göre değil, oyuncunun board'u ne kadar
+    // doldurduğuna göre hesaplanıyor:
+    // - Doluluk oranı bu eşiğin altındaysa (hiç odaklanmadıysa) -> 1 yıldız
+    // - Bu eşiğe ulaştıysa (biraz odaklandıysa) -> 2 yıldız
+    // - Board'un TAMAMINI doldurduysa (eksiksiz) -> 3 yıldız
+    [SerializeField][Range(0f, 1f)] private float twoStarFillThreshold = 0.5f;
+
     [Header("Level Tamamlama")]
     [SerializeField] private GameObject levelCompletePanel;
     [SerializeField] private TextMeshProUGUI levelCompleteTitleText;
     [SerializeField] private Image[] levelCompleteStarImages;
-    [SerializeField] private GameObject levelSelectPanel; // "Sonraki level yok" durumunda d�n�lecek panel
+    [SerializeField] private GameObject levelSelectPanel; // "Sonraki level yok" durumunda dönülecek panel
     [SerializeField] private bool autoAdvanceToNextLevel = false;
     [SerializeField] private float autoAdvanceDelay = 1.5f;
+
+    [Header("Level Tamamlama Gecikmesi")]
+    [Tooltip("Son bağlantı yapıldıktan sonra 'Level Complete' panelinin ekrana gelmesi için beklenecek süre (saniye). Oyuncu tamamlanmış board'u bir an görsün diye.")]
+    [SerializeField] private float levelCompleteDelay = 0.5f;
 
     private string currentDifficulty = "Normal";
     private int currentLevelIndex = 1;
     private bool levelCompleted = false;
+    private bool completionTriggered = false; // Coroutine'in birden fazla kez tetiklenmesini önler
     private float autoAdvanceTimer = 0f;
 
     private void OnEnable()
     {
-        // GridManager her yeni level olu�turdu�unda UI'� otomatik g�ncelle
+        // GridManager her yeni level oluşturduğunda UI'ı otomatik güncelle
         GridManager.OnLevelGenerated += HandleLevelGenerated;
     }
 
@@ -72,21 +87,22 @@ public class GameUIController : MonoBehaviour
 
     private void HandleLevelGenerated(LevelData level)
     {
-        // Yeni level y�klendi: tamamlanma durumunu ve panelleri s�f�rla
+        // Yeni level yüklendi: tamamlanma durumunu ve panelleri sıfırla
         levelCompleted = false;
+        completionTriggered = false;
         autoAdvanceTimer = 0f;
 
         if (levelCompletePanel != null)
             levelCompletePanel.SetActive(false);
 
-        // Yeni level ba�larken hamle sayac� ve �izilen path'ler s�f�rlanmal�
+        // Yeni level başlarken hamle sayacı ve çizilen path'ler sıfırlanmalı
         if (pathDrawer != null)
             pathDrawer.ResetState();
 
         SetupLevelInfo();
     }
 
-    // D��ar�dan (�r. LevelSelectManager) manuel olarak da tetiklenebilsin diye public b�rak�ld�.
+    // Dışarıdan (ör. LevelSelectManager) manuel olarak da tetiklenebilsin diye public bırakıldı.
     public void RefreshLevelInfo()
     {
         SetupLevelInfo();
@@ -120,8 +136,8 @@ public class GameUIController : MonoBehaviour
                 optimalText.text = $"Optimal: {level.optimalMoves} Moves";
         }
 
-        // Level ba��nda y�ld�zlar: zorlu�a g�re tahmin de�il,
-        // bu levelde daha �nce kazan�lm�� en iyi skor (hi� oynanmam��sa hepsi gri)
+        // Level başında yıldızlar: zorluğa göre tahmin değil,
+        // bu levelde daha önce kazanılmış en iyi skor (hiç oynanmamışsa hepsi gri)
         int previousBestStars = GameProgress.GetBestStars(difficulty, levelNumberInt);
         UpdateStarVisuals(previousBestStars);
 
@@ -130,17 +146,21 @@ public class GameUIController : MonoBehaviour
 
     private void RefreshTotalStarsText()
     {
-        if (totalStarsText == null) return;
-
         int total = GameProgress.GetTotalStarsAllDifficulties();
         int max = GameProgress.GetMaxPossibleStars();
-        totalStarsText.text = $"{total} / {max}";
+        string totalStarsString = $"{total} / {max}";
+
+        if (totalStarsText != null)
+            totalStarsText.text = totalStarsString;
+
+        if (levelStarsText != null)
+            levelStarsText.text = totalStarsString;
     }
 
     private void UpdateStats()
     {
         if (gridManager == null || gridManager.CurrentLevel == null || pathDrawer == null) return;
-        if (levelCompleted) return; // Level bittikten sonra saya�lar� g�ncellemeye devam etme
+        if (levelCompleted) return; // Level bittikten sonra sayaçları güncellemeye devam etme
 
         var level = gridManager.CurrentLevel;
 
@@ -156,11 +176,27 @@ public class GameUIController : MonoBehaviour
         if (connectionText != null)
             connectionText.text = $"{connectedPairs} / {totalPairs}";
 
-        // --- Level Tamamlama Kontrol� ---
-        if (totalPairs > 0 && connectedPairs >= totalPairs)
+        // --- Level Tamamlama Kontrolü ---
+        // Panel hemen açılmıyor: burada sadece gecikmeli tetikleyici
+        // coroutine'i BİR KEZ başlatıyoruz. Gerçek "levelCompleted = true"
+        // ataması ve panel gösterimi HandleLevelCompleted içinde,
+        // gecikme süresi dolduktan sonra gerçekleşir.
+        if (totalPairs > 0 && connectedPairs >= totalPairs && !completionTriggered)
         {
-            HandleLevelCompleted(currentMoves, level);
+            completionTriggered = true;
+            StartCoroutine(DelayedLevelComplete(currentMoves, level));
         }
+    }
+
+    /// <summary>
+    /// Oyuncu son bağlantıyı yaptıktan sonra, "Level Complete" panelinin
+    /// hemen değil, kısa bir gecikmeyle (levelCompleteDelay saniye) ekrana
+    /// gelmesini sağlar. Böylece oyuncu tamamlanmış board'u bir an görebilir.
+    /// </summary>
+    private IEnumerator DelayedLevelComplete(int movesUsed, LevelData level)
+    {
+        yield return new WaitForSeconds(levelCompleteDelay);
+        HandleLevelCompleted(movesUsed, level);
     }
 
     private void HandleLevelCompleted(int movesUsed, LevelData level)
@@ -169,23 +205,64 @@ public class GameUIController : MonoBehaviour
         levelCompleted = true;
         autoAdvanceTimer = 0f;
 
-        int earnedStars = CalculateStars(movesUsed, level.optimalMoves, level.moveLimit);
+        int totalCells = level.gridWidth * level.gridHeight;
+        int occupiedCells = pathDrawer != null ? pathDrawer.GetOccupiedCellCount() : 0;
+
+        int earnedStars = CalculateStars(
+            movesUsed, level.optimalMoves, level.moveLimit,
+            occupiedCells, totalCells);
 
         GameProgress.UnlockNextLevel(currentDifficulty, currentLevelIndex);
         GameProgress.SaveBestStars(currentDifficulty, currentLevelIndex, earnedStars);
 
         UpdateStarVisuals(earnedStars);
         ShowLevelCompletePanel(earnedStars);
-        RefreshTotalStarsText(); // Toplam skor an�nda g�ncellensin
+        RefreshTotalStarsText(); // Toplam skor anında güncellensin
+
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlayLevelCompleteSfx();
     }
 
-    private int CalculateStars(int movesUsed, int optimalMoves, int moveLimit)
+    // Nihai yıldız sayısı, hamle bazlı ve doluluk bazlı skorların
+    // DAHA DÜŞÜK olanı alınarak belirlenir. Böylece 3 yıldız almak için
+    // oyuncunun hem az hamleyle hem de board'u eksiksiz doldurarak
+    // bitirmesi gerekir - sadece biri yeterli değildir.
+    private int CalculateStars(
+        int movesUsed, int optimalMoves, int moveLimit,
+        int occupiedCells, int totalCells)
     {
-        if (movesUsed > moveLimit) return 0; // Limit a��ld�ysa y�ld�z yok
+        int moveStars = CalculateMoveStars(movesUsed, optimalMoves, moveLimit);
+        int fillStars = CalculateFillStars(occupiedCells, totalCells);
+
+        return Mathf.Min(moveStars, fillStars);
+    }
+
+    // Hamle sayısına göre yıldız: LevelData ile birlikte üretim sırasında
+    // gelen optimalMoves / moveLimit değerlerine göre hesaplanır.
+    private int CalculateMoveStars(int movesUsed, int optimalMoves, int moveLimit)
+    {
+        if (movesUsed > moveLimit) return 0; // Limit aşıldıysa yıldız yok
+
         if (movesUsed <= optimalMoves) return 3;
 
         int midThreshold = optimalMoves + Mathf.Max(1, (moveLimit - optimalMoves) / 2);
         if (movesUsed <= midThreshold) return 2;
+
+        return 1;
+    }
+
+    // Grid doluluk oranına göre yıldız: oyuncu tüm renkleri birleştirip
+    // leveli bitirdiğinde board'un ne kadarını doldurduğuna bakar.
+    private int CalculateFillStars(int occupiedCells, int totalCells)
+    {
+        if (totalCells <= 0) return 0;
+
+        // Board'un TAMAMI dolduysa (eksiksiz) -> 3 yıldız.
+        if (occupiedCells >= totalCells) return 3;
+
+        float fillRatio = (float)occupiedCells / totalCells;
+
+        if (fillRatio >= twoStarFillThreshold) return 2;
 
         return 1;
     }
@@ -228,7 +305,7 @@ public class GameUIController : MonoBehaviour
         }
     }
 
-    // --- Level Complete Panel Butonlar� ---
+    // --- Level Complete Panel Butonları ---
 
     public void OnClickNextLevel()
     {
@@ -255,7 +332,7 @@ public class GameUIController : MonoBehaviour
 
         if (nextLevelNumber > GameProgress.TotalLevelsPerDifficulty)
         {
-            // Bu zorluktaki son level tamamland�: level select / men�ye d�n
+            // Bu zorluktaki son level tamamlandı: level select / menüye dön
             OnClickBackToLevelSelect();
             return;
         }
@@ -265,12 +342,12 @@ public class GameUIController : MonoBehaviour
 
         if (nextLevel == null)
         {
-            Debug.LogWarning($"Sonraki level bulunamad�: Resources/{path}. Level select'e d�n�l�yor.");
+            Debug.LogWarning($"Sonraki level bulunamadı: Resources/{path}. Level select'e dönülüyor.");
             OnClickBackToLevelSelect();
             return;
         }
 
-        // Tahtay� ve hamle sayac�n� s�f�rla (men�ye d�nerken yapt���m�z�n ayn�s�)
+        // Tahtayı ve hamle sayacını sıfırla (menüye dönerken yaptığımızın aynısı)
         if (pathDrawer != null)
         {
             pathDrawer.ClearAllLines();
@@ -289,11 +366,11 @@ public class GameUIController : MonoBehaviour
         }
     }
 
-    // --- Alt Butonlar�n Fonksiyonlar� ---
+    // --- Alt Butonların Fonksiyonları ---
 
     public void OnClickRestart()
     {
-        // TRY AGAIN (RETRY): T�m path line'lar� temizler ve hamleyi s�f�rlar
+        // TRY AGAIN (RETRY): Tüm path line'ları temizler ve hamleyi sıfırlar
         if (pathDrawer != null)
         {
             pathDrawer.ClearAllLines();
@@ -302,7 +379,7 @@ public class GameUIController : MonoBehaviour
 
     public void OnClickUndo()
     {
-        // UNDO: Yap�lan son path line'� temizler
+        // UNDO: Yapılan son path line'ı temizler
         if (pathDrawer != null)
         {
             pathDrawer.UndoLastLine();
@@ -316,13 +393,13 @@ public class GameUIController : MonoBehaviour
 
     public void OnClickMenu()
     {
-        // Ana men�ye d�nerken hem tahtay� temizle hem de hamle sayac�n� s�f�rla
+        // Ana menüye dönerken hem tahtayı temizle hem de hamle sayacını sıfırla
         if (pathDrawer != null)
         {
             pathDrawer.ClearAllLines();
         }
 
-        // Win ekran� (level complete paneli) a��ksa onu da kapat
+        // Win ekranı (level complete paneli) açıksa onu da kapat
         if (levelCompletePanel != null)
             levelCompletePanel.SetActive(false);
 
@@ -335,5 +412,33 @@ public class GameUIController : MonoBehaviour
             gameHUDPanel.SetActive(false);
         else
             gameObject.SetActive(false);
+    }
+
+    // --- Level Complete Panel - Play Again ---
+
+    public void OnClickPlayAgain()
+    {
+        // 1. Level Complete panelini kapat
+        if (levelCompletePanel != null)
+            levelCompletePanel.SetActive(false);
+
+        // 2. Çizgileri ve tahta durumunu sıfırla
+        if (pathDrawer != null)
+        {
+            pathDrawer.ClearAllLines();
+        }
+
+        // 3. Mevcut level verisini tekrar yükle ve gridi yeniden oluştur
+        string path = $"Levels/{currentDifficulty}/Level_{currentDifficulty}_{currentLevelIndex:00}";
+        LevelData currentLevel = Resources.Load<LevelData>(path);
+
+        if (currentLevel != null && gridManager != null)
+        {
+            gridManager.GenerateGrid(currentLevel);
+        }
+        else
+        {
+            Debug.LogError($"Mevcut level yeniden yüklenemedi: Resources/{path}");
+        }
     }
 }

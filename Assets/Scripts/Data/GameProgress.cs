@@ -1,8 +1,8 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public static class GameProgress
 {
-    public const int TotalLevelsPerDifficulty = 20;
+    public const int TotalLevelsPerDifficulty = 100;
     private static readonly string[] AllDifficulties = { "Easy", "Normal", "Hard" };
 
     public static int GetUnlockedLevel(string difficulty)
@@ -20,7 +20,7 @@ public static class GameProgress
         }
     }
 
-    // --- Yýldýz Skorlarý ---
+    // --- Yï¿½ldï¿½z Skorlarï¿½ ---
 
     private static string StarsKey(string difficulty, int levelIndex) =>
         $"{difficulty}_Level{levelIndex}_Stars";
@@ -40,7 +40,7 @@ public static class GameProgress
         }
     }
 
-    // Tek bir zorluk modundaki tüm levellerden toplanan yýldýz
+    // Tek bir zorluk modundaki tï¿½m levellerden toplanan yï¿½ldï¿½z
     public static int GetTotalStarsForDifficulty(string difficulty)
     {
         int total = 0;
@@ -51,7 +51,7 @@ public static class GameProgress
         return total;
     }
 
-    // Tüm zorluk modlarýndaki (Easy + Normal + Hard) tüm levellerden toplanan yýldýz
+    // Tï¿½m zorluk modlarï¿½ndaki (Easy + Normal + Hard) tï¿½m levellerden toplanan yï¿½ldï¿½z
     public static int GetTotalStarsAllDifficulties()
     {
         int total = 0;
@@ -62,7 +62,7 @@ public static class GameProgress
         return total;
     }
 
-    // Oyundaki maksimum ulaþýlabilir yýldýz sayýsý (UI'da "X / Max" göstermek için)
+    // Oyundaki maksimum ulaï¿½ï¿½labilir yï¿½ldï¿½z sayï¿½sï¿½ (UI'da "X / Max" gï¿½stermek iï¿½in)
     public static int GetMaxPossibleStars()
     {
         return AllDifficulties.Length * TotalLevelsPerDifficulty * 3;

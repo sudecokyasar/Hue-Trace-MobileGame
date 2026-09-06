@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -8,6 +9,11 @@ public class PathDrawer : MonoBehaviour
     [SerializeField] private GridManager gridManager;
     [SerializeField] private LineRenderer linePrefab;
 
+    [Header("Görsel & Efekt Ayarları")]
+    [SerializeField] private float hdrIntensity = 1.8f;
+    [Tooltip("Elektrik akımının hattın başından sonuna akma süresi (saniye)")]
+    [SerializeField] private float pulseDuration = 0.28f;
+
     private bool isDrawing = false;
     private Color currentColor;
     private List<CellView> currentPath = new List<CellView>();
@@ -16,12 +22,33 @@ public class PathDrawer : MonoBehaviour
     private Dictionary<Color, ColorNetwork> colorNetworks = new Dictionary<Color, ColorNetwork>();
     private List<LineRenderer> activeLines = new List<LineRenderer>();
 
+    /// <summary>
+    /// Hangi çizginin hangi renk network'üne ve hangi branch'e (hücre
+    /// listesine) ait olduğunu tutar. Undo işleminde SADECE görsel
+    /// çizgiyi değil, ColorNetwork.AllBranches içindeki gerçek bağlantı
+    /// verisini de birlikte geri almak için gerekli.
+    ///
+    /// NOT / BUG FIX: Eskiden UndoLastLine() sadece LineRenderer'ı
+    /// (görseli) siliyordu, ColorNetwork.AllBranches'teki veriyi hiç
+    /// temizlemiyordu. Bu yüzden bir rengi bağlayıp undo yapınca, o
+    /// renk sistem tarafından hâlâ "bağlı" sayılıyordu (sadece ekranda
+    /// çizgi görünmüyordu). Sonuç: 3 renkten 1'i undo edilmiş olsa bile
+    /// diğer 2 renk bağlanınca level yanlışlıkla "tamamlandı" sayılıyordu.
+    /// </summary>
+    private class ConnectionRecord
+    {
+        public Color Color;
+        public List<CellView> Branch;
+        public LineRenderer Line;
+    }
+
+    private List<ConnectionRecord> connectionHistory = new List<ConnectionRecord>();
+
     public int MoveCount { get; private set; } = 0;
 
     private Camera cam;
 
-    // PathDrawer.cs içine event ekle
-    public static event System.Action<int> OnLevelCompleted; // parametre: kullanılan hamle sayısı
+    public static event System.Action<int> OnLevelCompleted;
 
     private void Awake()
     {
@@ -72,8 +99,11 @@ public class PathDrawer : MonoBehaviour
         currentPath.Add(hitCell);
 
         activeLine = Instantiate(linePrefab, transform);
-        activeLine.startColor = currentColor;
-        activeLine.endColor = currentColor;
+
+        Color hdrColor = currentColor * hdrIntensity;
+        hdrColor.a = 1f;
+        activeLine.startColor = hdrColor;
+        activeLine.endColor = hdrColor;
 
         activeLines.Add(activeLine);
 
@@ -152,18 +182,40 @@ public class PathDrawer : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// DÜZELTİLDİ: Artık sadece görsel çizgiyi değil, ColorNetwork
+    /// içindeki gerçek bağlantı verisini (branch) ve o network'ün
+    /// Lines listesindeki kaydı da birlikte geri alıyor. Bu sayede
+    /// undo edilen bir renk, level tamamlama kontrolünde artık
+    /// "bağlı" sayılmıyor.
+    /// </summary>
     public void UndoLastLine()
     {
-        if (activeLines != null && activeLines.Count > 0)
+        if (connectionHistory == null || connectionHistory.Count == 0) return;
+
+        ConnectionRecord last = connectionHistory[connectionHistory.Count - 1];
+        connectionHistory.RemoveAt(connectionHistory.Count - 1);
+
+        ColorNetwork network = GetNetwork(last.Color);
+        if (network != null)
         {
-            LineRenderer lastLine = activeLines[activeLines.Count - 1];
-            if (lastLine != null)
-            {
-                Destroy(lastLine.gameObject);
-            }
-            activeLines.RemoveAt(activeLines.Count - 1);
-            MoveCount = Mathf.Max(0, MoveCount - 1);
+            network.AllBranches.Remove(last.Branch);
+            network.Lines.Remove(last.Line);
         }
+
+        if (activeLines != null && activeLines.Contains(last.Line))
+        {
+            activeLines.Remove(last.Line);
+        }
+
+        if (last.Line != null)
+        {
+            Destroy(last.Line.gameObject);
+        }
+        
+        // Undo edilen bağ bir mix hücresinin girdisiyse, mix sonucu
+        // artık geçerli olmayabilir - yeniden değerlendir.
+        CheckMixCells();
     }
 
     public void ClearAllLines()
@@ -189,17 +241,56 @@ public class PathDrawer : MonoBehaviour
             colorNetworks.Clear();
         }
 
+        // Undo geçmişi de sıfırlanmalı, aksi halde bir önceki levelden
+        // kalan referanslar (artık var olmayan hücre/çizgi nesnelerine
+        // işaret eden ConnectionRecord'lar) tutulmaya devam eder.
+        connectionHistory.Clear();
+
+        // Restart / Try Again / Menu / Play Again gibi durumlarda level
+        // yeniden üretilmese bile (aynı hücre nesneleri korunsa bile)
+        // hücrelerin oyun-içi özel durumları (kırılmış buz, aktifleşmiş
+        // mix hücresi) sıfırlanmalı. Aksi halde örn. kırılan buz, board
+        // yeniden üretilmeden yapılan bir restart sonrası kırık kalmaya
+        // devam ediyordu.
+        ResetSpecialCellStates();
+
         MoveCount = 0;
     }
 
-    // Yeni level yüklendiğinde GameUIController tarafından çağrılır.
-    // ClearAllLines() zaten tahtayı ve MoveCount'u sıfırlıyor, bu sadece isim olarak
-    // "yeni level başlangıcı" niyetini daha net ifade etmek için bir alias.
+    private void ResetSpecialCellStates()
+    {
+        if (gridManager == null) return;
+
+        CellView[,] cells = gridManager.GridCells;
+        if (cells == null) return;
+
+        int width = cells.GetLength(0);
+        int height = cells.GetLength(1);
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                CellView cell = cells[x, y];
+                if (cell == null) continue;
+
+                if (cell.IsIce)
+                {
+                    cell.ResetIceState();
+                }
+
+                if (cell.IsMixCell && cell.IsMixActivated)
+                {
+                    cell.DeactivateMixResult();
+                }
+            }
+        }
+    }
+
     public void ResetState()
     {
         ClearAllLines();
 
-        // Eğer aktif olarak çizim yapılıyorsa (level tam ortasında değiştirildiyse) onu da iptal et
         isDrawing = false;
         currentPath.Clear();
         activeLine = null;
@@ -210,7 +301,8 @@ public class PathDrawer : MonoBehaviour
         if (!isDrawing) return;
         isDrawing = false;
 
-        CellView startCell = currentPath[0];
+        int startIndex = 0;
+        CellView startCell = currentPath[startIndex];
         CellView endCell = currentPath[currentPath.Count - 1];
 
         ColorNetwork network = GetOrCreateNetwork(currentColor);
@@ -225,8 +317,21 @@ public class PathDrawer : MonoBehaviour
 
         if (isValidConnection)
         {
-            network.AllBranches.Add(new List<CellView>(currentPath));
+            // Branch referansını bir değişkende tutuyoruz ki hem network'e
+            // hem de undo geçmişine AYNI listeyi (referansı) ekleyelim -
+            // böylece undo'da network.AllBranches.Remove() referans bazlı
+            // çalışıp doğru elemanı bulabilsin.
+            List<CellView> branch = new List<CellView>(currentPath);
+            network.AllBranches.Add(branch);
             network.Lines.Add(activeLine);
+
+            connectionHistory.Add(new ConnectionRecord
+            {
+                Color = currentColor,
+                Branch = branch,
+                Line = activeLine
+            });
+
             MoveCount++;
 
             foreach (var cell in currentPath)
@@ -236,6 +341,11 @@ public class PathDrawer : MonoBehaviour
                     cell.CollapseIce();
                 }
             }
+
+            StartCoroutine(PlayElectricCurrent(activeLine, currentColor));
+
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.PlayConnectionSfx();
 
             CheckMixCells();
             CheckLevelComplete();
@@ -247,6 +357,85 @@ public class PathDrawer : MonoBehaviour
                 activeLines.Remove(activeLine);
                 Destroy(activeLine.gameObject);
             }
+        }
+    }
+
+    /// <summary>
+    /// Akımı çizginin ucundan dışarı akıtıp sıfırlayan güncel elektrik dalgası fonksiyonu.
+    /// </summary>
+    private IEnumerator PlayElectricCurrent(LineRenderer line, Color baseColor)
+    {
+        if (line == null) yield break;
+
+        float duration = pulseDuration;
+        float elapsed = 0f;
+
+        Color baseHdr = baseColor * hdrIntensity;
+        baseHdr.a = 1f;
+
+        Color electricPulseColor = Color.Lerp(baseColor, Color.white, 0.85f) * 3.0f;
+        electricPulseColor.a = 1f;
+
+        float pulseWidth = 0.20f;
+
+        while (elapsed < duration)
+        {
+            if (line == null) yield break;
+
+            elapsed += Time.deltaTime;
+            float progress = Mathf.Clamp01(elapsed / duration);
+
+            // t değeri çizginin gerisinden başlayıp çizginin ucundan tamamen dışarı çıkar
+            float t = Mathf.Lerp(-pulseWidth, 1f + pulseWidth, progress);
+
+            float startPos = Mathf.Clamp01(t - pulseWidth);
+            float peakPos = Mathf.Clamp01(t);
+            float endPos = Mathf.Clamp01(t + pulseWidth);
+
+            // Eğer akım çizginin dışına çıktıysa artık beyazlık basma
+            Color currentCenterColor = (t >= 0f && t <= 1f) ? electricPulseColor : baseHdr;
+
+            Gradient gradient = new Gradient();
+            gradient.SetKeys(
+                new GradientColorKey[]
+                {
+                    new GradientColorKey(baseHdr, 0f),
+                    new GradientColorKey(baseHdr, startPos),
+                    new GradientColorKey(currentCenterColor, peakPos),
+                    new GradientColorKey(baseHdr, endPos),
+                    new GradientColorKey(baseHdr, 1f)
+                },
+                new GradientAlphaKey[]
+                {
+                    new GradientAlphaKey(1f, 0f),
+                    new GradientAlphaKey(1f, 1f)
+                }
+            );
+
+            line.colorGradient = gradient;
+            yield return null;
+        }
+
+        // BİTİŞ: Çizgiyi tamamen 2 anahtarlı düz ve net kendi rengine sıfırla (Beyazlık kalmaz!)
+        if (line != null)
+        {
+            Gradient flatGradient = new Gradient();
+            flatGradient.SetKeys(
+                new GradientColorKey[]
+                {
+                    new GradientColorKey(baseHdr, 0f),
+                    new GradientColorKey(baseHdr, 1f)
+                },
+                new GradientAlphaKey[]
+                {
+                    new GradientAlphaKey(1f, 0f),
+                    new GradientAlphaKey(1f, 1f)
+                }
+            );
+
+            line.colorGradient = flatGradient;
+            line.startColor = baseHdr;
+            line.endColor = baseHdr;
         }
     }
 
@@ -378,8 +567,33 @@ public class PathDrawer : MonoBehaviour
             }
         }
 
-        // Tüm koşullar sağlandı: level tamamlandı
+        if (!IsBoardFullyFilled(level))
+            return;
+
         OnLevelCompleted?.Invoke(MoveCount);
+    }
+
+    private bool IsBoardFullyFilled(LevelData level)
+    {
+        int totalCells = level.gridWidth * level.gridHeight;
+
+        HashSet<CellView> allOccupied = new HashSet<CellView>();
+        foreach (var kvp in colorNetworks)
+        {
+            allOccupied.UnionWith(kvp.Value.GetAllOccupiedCells());
+        }
+
+        return allOccupied.Count >= totalCells;
+    }
+
+    public int GetOccupiedCellCount()
+    {
+        HashSet<CellView> allOccupied = new HashSet<CellView>();
+        foreach (var kvp in colorNetworks)
+        {
+            allOccupied.UnionWith(kvp.Value.GetAllOccupiedCells());
+        }
+        return allOccupied.Count;
     }
 
     private ColorNetwork GetOrCreateNetwork(Color color)
@@ -417,7 +631,7 @@ public class PathDrawer : MonoBehaviour
         for (int i = 0; i < currentPath.Count; i++)
         {
             Vector3 pos = currentPath[i].transform.position;
-            pos.z = -0.2f;
+            pos.z = 0f;
             activeLine.SetPosition(i, pos);
         }
     }
@@ -436,13 +650,11 @@ public class PathDrawer : MonoBehaviour
 
         Vector2 screenPos = pointer.position.ReadValue();
         Vector3 worldPos = cam.ScreenToWorldPoint(screenPos);
-        RaycastHit2D hit = Physics2D.Raycast(worldPos, Vector2.zero);
+        worldPos.z = 0f;
 
-        if (hit.collider != null)
-        {
-            return hit.collider.GetComponent<CellView>();
-        }
-        return null;
+        if (gridManager == null) return null;
+
+        return gridManager.GetCellAtWorldPosition(worldPos);
     }
 
     public int GetCompletedConnectionCount()
@@ -470,5 +682,4 @@ public class PathDrawer : MonoBehaviour
         }
         return completedCount;
     }
-
 }

@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a95b181ffe2f7f44199d6ca51f6e78cf, type: 3}
+  m_Name: Level_Easy_52
+  m_EditorClassIdentifier: Assembly-CSharp::LevelData
+  levelId: Level_Easy_52
+  difficulty: 0
+  gridWidth: 5
+  gridHeight: 5
+  optimalMoves: 5
+  moveLimit: 8
+  colorPairs:
+  - colorId: Color_0
+    color: {r: 1, g: 0.2, b: 0.38, a: 1}
+    startPos: {x: 0, y: 4}
+    endPos: {x: 4, y: 3}
+    extraEndpoints: []
+  - colorId: Color_1
+    color: {r: 0.12, g: 0.65, b: 1, a: 1}
+    startPos: {x: 4, y: 2}
+    endPos: {x: 2, y: 0}
+    extraEndpoints: []
+  - colorId: Color_2
+    color: {r: 0.36, g: 0.9, b: 0.42, a: 1}
+    startPos: {x: 1, y: 0}
+    endPos: {x: 2, y: 1}
+    extraEndpoints: []
+  - colorId: Color_3
+    color: {r: 1, g: 0.8, b: 0.33, a: 1}
+    startPos: {x: 3, y: 1}
+    endPos: {x: 2, y: 3}
+    extraEndpoints: []
+  - colorId: Color_4
+    color: {r: 0.75, g: 0.25, b: 1, a: 1}
+    startPos: {x: 2, y: 2}
+    endPos: {x: 1, y: 3}
+    extraEndpoints: []
+  lockedCells: []
+  iceCells: []
+  bridgeCells: []
+  mixRules: []

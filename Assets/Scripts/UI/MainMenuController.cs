@@ -28,6 +28,32 @@ public class MainMenuController : MonoBehaviour
         if (modeSelectPanel) modeSelectPanel.SetActive(true);
     }
 
+    public void OnClickContinueButton()
+    {
+        // En son oynanan veya varsayýlan zorluk seviyesini al
+        string lastDifficulty = string.IsNullOrEmpty(GameDataHolder.SelectedDifficulty)
+            ? "Easy"
+            : GameDataHolder.SelectedDifficulty;
+
+        // O zorlukta kalýnan en yüksek açýk seviyeyi al
+        int currentUnlockedLevel = GameProgress.GetUnlockedLevel(lastDifficulty);
+
+        // Seviyeyi doðrudan baþlat
+        if (levelSelectManager != null)
+        {
+            levelSelectManager.LoadLevel(lastDifficulty, currentUnlockedLevel);
+        }
+    }
+
+    public void OnClickExitButton()
+    {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
+
     public void OnClickSelectMode(string difficulty)
     {
         if (modeSelectPanel) modeSelectPanel.SetActive(false);

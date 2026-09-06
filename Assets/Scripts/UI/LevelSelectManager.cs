@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using UnityEngine.SceneManagement;
 
 public class LevelSelectManager : MonoBehaviour
 {
@@ -9,6 +8,10 @@ public class LevelSelectManager : MonoBehaviour
     [SerializeField] private string currentDifficulty = "Easy";
     [SerializeField] private Transform levelButtonContainer;
     [SerializeField] private GameObject levelButtonPrefab;
+    [SerializeField] private ScrollRect scrollRect; // ScrollRect referansý
+
+    [Header("UI Metinleri")]
+    [SerializeField] private TextMeshProUGUI difficultyTitleText;
 
     [Header("Görseller")]
     [SerializeField] private Color unlockedColor = Color.white;
@@ -18,10 +21,37 @@ public class LevelSelectManager : MonoBehaviour
     [SerializeField] private GameObject mainMenuCanvas;
     [SerializeField] private GameObject gameHUDPanel;
 
+    private void OnEnable()
+    {
+        ResetScrollPosition();
+    }
+
+    public void ResetScrollPosition()
+    {
+        if (scrollRect != null)
+        {
+            // Dikey kaydýrmada 1 = En Üst (Baþlangýç)
+            // Yatay kaydýrmada 0 = En Sol (Baþlangýç)
+            scrollRect.verticalNormalizedPosition = 1f;
+            scrollRect.horizontalNormalizedPosition = 0f;
+            scrollRect.velocity = Vector2.zero; // Kalan kayma momentumunu durdurur
+        }
+    }
+
     public void SetDifficulty(string difficulty)
     {
         currentDifficulty = difficulty;
+        UpdateDifficultyUI();
         GenerateLevelButtons();
+        ResetScrollPosition();
+    }
+
+    private void UpdateDifficultyUI()
+    {
+        if (difficultyTitleText != null)
+        {
+            difficultyTitleText.text = currentDifficulty.ToUpper();
+        }
     }
 
     public void GenerateLevelButtons()
@@ -64,26 +94,19 @@ public class LevelSelectManager : MonoBehaviour
         }
     }
 
-    private void LoadLevel(string difficulty, int levelNumber)
+    public void LoadLevel(string difficulty, int levelNumber)
     {
-        // 1. Seçilen bilgileri kaydet
         GameDataHolder.SelectedDifficulty = difficulty;
         GameDataHolder.SelectedLevelNumber = levelNumber;
 
-        // 2. Level Select panelini kapat
         gameObject.SetActive(false);
 
-        // 3. Ana menü/mode select canvas'ýný kapat, oyun HUD'unu aç
         if (mainMenuCanvas != null)
             mainMenuCanvas.SetActive(false);
 
         if (gameHUDPanel != null)
             gameHUDPanel.SetActive(true);
 
-        // 4. GridManager'a yeni level verisini yüklet
-        // Sahnedeki GridManager'ý bulup veriyi yüklemesini tetikliyoruz.
-        // GridManager.GenerateGrid içindeki OnLevelGenerated eventi sayesinde
-        // GameUIController buna otomatik olarak abone olup kendini güncelleyecek.
         GridManager gridManager = FindObjectOfType<GridManager>();
         if (gridManager != null)
         {

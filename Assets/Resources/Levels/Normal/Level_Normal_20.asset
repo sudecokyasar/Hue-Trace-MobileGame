@@ -16,51 +16,41 @@ MonoBehaviour:
   difficulty: 1
   gridWidth: 7
   gridHeight: 7
-  optimalMoves: 7
-  moveLimit: 9
+  optimalMoves: 5
+  moveLimit: 6
   colorPairs:
   - colorId: Color_0
-    color: {r: 0.95, g: 0.2, b: 0.2, a: 1}
-    startPos: {x: 1, y: 1}
-    endPos: {x: 0, y: 3}
+    color: {r: 1, g: 0.2, b: 0.38, a: 1}
+    startPos: {x: 2, y: 2}
+    endPos: {x: 1, y: 1}
     extraEndpoints: []
   - colorId: Color_1
-    color: {r: 0.2, g: 0.5, b: 1, a: 1}
-    startPos: {x: 0, y: 4}
-    endPos: {x: 1, y: 2}
+    color: {r: 0.12, g: 0.65, b: 1, a: 1}
+    startPos: {x: 1, y: 0}
+    endPos: {x: 3, y: 4}
     extraEndpoints: []
   - colorId: Color_2
-    color: {r: 0.15, g: 0.85, b: 0.35, a: 1}
-    startPos: {x: 2, y: 2}
-    endPos: {x: 3, y: 6}
+    color: {r: 0.36, g: 0.9, b: 0.42, a: 1}
+    startPos: {x: 4, y: 4}
+    endPos: {x: 5, y: 2}
     extraEndpoints: []
   - colorId: Color_3
-    color: {r: 1, g: 0.8, b: 0.1, a: 1}
-    startPos: {x: 3, y: 5}
-    endPos: {x: 4, y: 4}
+    color: {r: 1, g: 0.8, b: 0.33, a: 1}
+    startPos: {x: 6, y: 2}
+    endPos: {x: 4, y: 5}
     extraEndpoints: []
   - colorId: Color_4
-    color: {r: 0.7, g: 0.25, b: 0.95, a: 1}
-    startPos: {x: 4, y: 5}
-    endPos: {x: 5, y: 4}
-    extraEndpoints: []
-  - colorId: Color_5
-    color: {r: 1, g: 0.45, b: 0.1, a: 1}
-    startPos: {x: 6, y: 4}
-    endPos: {x: 6, y: 0}
-    extraEndpoints: []
-  - colorId: Color_6
-    color: {r: 0.1, g: 0.85, b: 0.9, a: 1}
-    startPos: {x: 5, y: 0}
-    endPos: {x: 2, y: 0}
+    color: {r: 0.75, g: 0.25, b: 1, a: 1}
+    startPos: {x: 4, y: 6}
+    endPos: {x: 1, y: 5}
     extraEndpoints: []
   lockedCells:
-  - position: {x: 0, y: 1}
-    allowedColor: {r: 0.95, g: 0.2, b: 0.2, a: 1}
-  - position: {x: 1, y: 5}
-    allowedColor: {r: 0.2, g: 0.5, b: 1, a: 1}
+  - position: {x: 3, y: 2}
+    allowedColor: {r: 1, g: 0.2, b: 0.38, a: 1}
+  - position: {x: 0, y: 3}
+    allowedColor: {r: 0.12, g: 0.65, b: 1, a: 1}
   iceCells:
-  - {x: 2, y: 6}
-  - {x: 4, y: 2}
+  - {x: 6, y: 0}
+  - {x: 6, y: 6}
   bridgeCells: []
   mixRules: []

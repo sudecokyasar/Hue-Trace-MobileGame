@@ -85,7 +85,7 @@ SpriteRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 5675857372675088757, guid: 70c131f9a42eab342b2105c1042ab5ae, type: 3}
-  m_Color: {r: 0.14150941, g: 0.14150941, b: 0.14150941, a: 1}
+  m_Color: {r: 0.16117279, g: 0.13105199, b: 0.1792453, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -155,6 +155,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CellView
   bgRenderer: {fileID: 580502139579169327}
   stoneRenderer: {fileID: 3127518293277008331}
+  iceSprite: {fileID: 5131037370232796267, guid: 17f233fe8c902e543a7ad0f805397523, type: 3}
+  brokenIceSprite: {fileID: -8698874022918288563, guid: 17f233fe8c902e543a7ad0f805397523, type: 3}
+  bridgeSprite: {fileID: -9119906713148525047, guid: 17f233fe8c902e543a7ad0f805397523, type: 3}
 --- !u!1 &8659239954683752831
 GameObject:
   m_ObjectHideFlags: 0
@@ -234,7 +237,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 1
+  m_SortingOrder: 3
   m_MaskInteraction: 0
   m_Sprite: {fileID: 5675857372675088757, guid: 70c131f9a42eab342b2105c1042ab5ae, type: 3}
   m_Color: {r: 0.084905684, g: 0.084905684, b: 0.084905684, a: 1}
