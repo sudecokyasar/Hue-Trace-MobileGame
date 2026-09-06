@@ -12,14 +12,6 @@
 
 Flow-Free tarzı, grid tabanlı bir bağlantı bulmacası oyunu. Klasik mekaniğin üzerine kilitli hücreler, buz blokları, köprüler ve renk karıştırma sistemleriyle katmanlı bir zorluk eğrisi eklendi.
 
-[Özellikler](#-özellikler) •
-[Ekran Görüntüleri](#-ekran-görüntüleri) •
-[Oynanış](#-oynanış-mekanikleri) •
-[Kurulum](#-kurulum) •
-[Mimari](#-proje-mimarisi)
-
-
-
 ---
 
 ##  Hakkında
