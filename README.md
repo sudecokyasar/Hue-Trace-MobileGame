@@ -54,8 +54,6 @@ Proje; **Easy / Normal / Hard** olmak üzere üç zorluk modu, mod başına 100 
 |---|---|
 |  **Kilitli Hücre** | Sadece belirlenen renk bu hücreden geçebilir |
 |  **Buz Hücresi** | Üzerinden bir kez geçildiğinde kırılır, tekrar kullanılamaz |
-|  **Köprü Hücresi** | İki farklı rengin aynı hücrede kesişmeden geçmesine izin verir |
-|  **Renk Karıştırma Hücresi** | İki farklı rengi birleştirip üçüncü bir renk üretir (yalnızca Hard mod) |
 
 ###  İlerleme ve Ödül Sistemi
 - **3 Zorluk Modu:** Easy, Normal, Hard — her biri kendi 20 levellik seti ve grid boyutlarıyla
