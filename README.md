@@ -2,7 +2,7 @@
 
 # Hue Trace - Color Connect Puzzle Game
 
-<div align="center">
+
 
 ![Unity](https://img.shields.io/badge/Unity-2022.3%20LTS-black?style=for-the-badge&logo=unity)
 ![C#](https://img.shields.io/badge/C%23-239120?style=for-the-badge&logo=csharp&logoColor=white)
@@ -18,7 +18,7 @@ Flow-Free tarzı, grid tabanlı bir bağlantı bulmacası oyunu. Klasik mekaniğ
 [Kurulum](#-kurulum) •
 [Mimari](#-proje-mimarisi)
 
-</div>
+
 
 ---
 
@@ -32,7 +32,7 @@ Proje; **Easy / Normal / Hard** olmak üzere üç zorluk modu, mod başına 100 
 
 ##  Ekran Görüntüleri
 
-<div align="center">
+
 
 |  Ana Menü | Zorluk Seçim Ekranı |
 |:---:|:---:|
