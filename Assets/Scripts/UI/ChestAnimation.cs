@@ -4,13 +4,13 @@ using UnityEngine.UI;
 
 public class ChestAnimation : MonoBehaviour
 {
-    [Header("UI & Görseller")]
+    [Header("UI & Gï¿½rseller")]
     [SerializeField] private Image chestImage;
     [SerializeField] private Sprite closedChestSprite;
     [SerializeField] private Sprite openChestSprite;
-    [SerializeField] private GameObject glowEffect; // Sandýðýn arkasýndaki parýltý efekti (varsa)
+    [SerializeField] private GameObject glowEffect; 
 
-    [Header("Animasyon Ayarlarý")]
+    [Header("Animasyon Ayarlarï¿½")]
     [SerializeField] private float shakeDuration = 0.6f;
     [SerializeField] private float shakeMagnitude = 8f;
 
@@ -33,16 +33,13 @@ public class ChestAnimation : MonoBehaviour
 
     private IEnumerator AnimateChestOpen()
     {
-        // 1. Baþlangýç durumu: Kapalý sandýk
         chestImage.sprite = closedChestSprite;
         rectTransform.localScale = initialScale;
         rectTransform.anchoredPosition = initialPos;
         if (glowEffect != null) glowEffect.SetActive(false);
 
-        // 2. Hafif bekleme
         yield return new WaitForSeconds(0.2f);
 
-        // 3. Titreme / Sallanma Efekti (Gerilim)
         float elapsed = 0f;
         while (elapsed < shakeDuration)
         {
@@ -56,11 +53,9 @@ public class ChestAnimation : MonoBehaviour
 
         rectTransform.anchoredPosition = initialPos;
 
-        // 4. Sýkýþma (Squash)
         rectTransform.localScale = new Vector3(initialScale.x * 1.15f, initialScale.y * 0.85f, initialScale.z);
         yield return new WaitForSeconds(0.08f);
 
-        // 5. Sandýðý Aç ve Büyüt (Stretch / Pop)
         chestImage.sprite = openChestSprite;
         if (glowEffect != null) glowEffect.SetActive(true);
 
@@ -68,7 +63,6 @@ public class ChestAnimation : MonoBehaviour
         float popDuration = 0.25f;
         Vector3 peakScale = initialScale * 1.25f;
 
-        // Yukarý doðru fýrlama
         while (popElapsed < popDuration)
         {
             rectTransform.localScale = Vector3.Lerp(initialScale, peakScale, popElapsed / popDuration);
@@ -76,7 +70,6 @@ public class ChestAnimation : MonoBehaviour
             yield return null;
         }
 
-        // Orijinal boyuta geri yerleþme
         popElapsed = 0f;
         while (popElapsed < 0.15f)
         {

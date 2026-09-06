@@ -1,26 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Verilen bir LevelData icin, board'un tamamini dolduran gecerli cozum
-/// sayisini bulur (Numberlink/Flow-Free tarzi cozucu).
-///
-/// NOT / SINIRLAMALAR:
-/// - Sadece "2 uclu" renkler destekleniyor (startPos -> endPos).
-///   Hard moddaki extraEndpoints (3+ uclu renk) mekanigi bu solver'da
-///   desteklenmiyor.
-/// - Bridge hucreleri de desteklenmiyor.
-/// - Bu, dogrulugu hiz'a tercih eden bir backtracking solver'dir.
-/// - "%100 dolu board" garantisi SolveColor icindeki final kontrolde
-///   yapilir: renkler birlesse bile board'da bos hucre kaldiysa o dal
-///   COZUM olarak SAYILMAZ. Bu kontrole nodeBudget/BudgetExceeded
-///   mekanizmasi dokunmaz.
-/// </summary>
+
 public static class LevelSolver
 {
-    // Node butcesi tukendiginde CountFullFillSolutions bu degeri doner.
-    // Caller (LevelGeneratorEditor) bunu "guvenle tek-cozumlu" olarak
-    // KABUL ETMEMELI, boyle bir board'u reddedip yeniden denemelidir.
+
     public const int BudgetExceeded = -1;
 
     private static readonly Vector2Int[] Dirs4 =
@@ -28,11 +12,7 @@ public static class LevelSolver
         Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right
     };
 
-    /// <summary>
-    /// Board'u tam dolduran gecerli cozum sayisini dondurur, "cap" degerine
-    /// ulasinca aramayi durdurur (0, 1 yoksa 2+ bilmek yeterli).
-    /// nodeBudget asilirsa BudgetExceeded doner (sonuc GUVENILIR DEGILDIR).
-    /// </summary>
+
     public static int CountFullFillSolutions(
         LevelData level,
         int cap = 2,
@@ -83,10 +63,7 @@ public static class LevelSolver
         return solutionCount;
     }
 
-    /// <summary>
-    /// Bu level'in solver tarafindan guvenilir sekilde kontrol edilip
-    /// edilemeyecegini soyler (bridge yok, extraEndpoints yok sartiyla).
-    /// </summary>
+
     public static bool CanVerifyUniqueness(LevelData level)
     {
         if (level.bridgeCells != null && level.bridgeCells.Count > 0)
@@ -134,16 +111,13 @@ public static class LevelSolver
 
         if (colorIndex == numColors)
         {
-            // KRITIK GARANTI: renklerin hepsi birlesmis olsa bile,
-            // board'da TEK BIR bos hucre kaldiysa bu bir cozum SAYILMAZ.
-            // 3 yildiz / level-complete kosulu olan "%100 dolu grid"
-            // garantisi buradan geliyor.
+
             for (int x = 0; x < w; x++)
             {
                 for (int y = 0; y < h; y++)
                 {
                     if (owner[x, y] < 0)
-                        return; // bos hucre kaldi, bu bir cozum degil
+                        return;
                 }
             }
 
@@ -228,19 +202,7 @@ public static class LevelSolver
         }
     }
 
-    /// <summary>
-    /// Ucuz pruning: henuz sirasi gelmemis renklerin start/end hucreleri
-    /// hala bos mu.
-    ///
-    /// NOT: Bu fonksiyon eskiden ayrica TUM bos hucreleri BFS ile tarayip
-    /// "region" listeleri cikariyordu, ama o region'lari hicbir yerde
-    /// KULLANMIYORDU (hicbir dallanmayi elemiyordu) - sadece her tek arama
-    /// node'unda O(genislik*yukseklik) is yaparak CPU harciyordu. Bu, board
-    /// 7x7/9x9 oldugunda ve node budget yuz binlerce oldugunda ciddi
-    /// yavaslamaya yol aciyordu. Board'un %100 dolu olma garantisi zaten
-    /// SolveColor'daki final kontrolde saglandigi icin (yukarida), o BFS'in
-    /// hicbir dogruluk katkisi yoktu - guvenle kaldirildi.
-    /// </summary>
+
     private static bool IsRemainingBoardViable(
         int[,] owner, Vector2Int[] starts, Vector2Int[] ends,
         int nextColorIndex, int numColors, int w, int h)

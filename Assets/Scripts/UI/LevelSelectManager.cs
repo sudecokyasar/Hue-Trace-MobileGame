@@ -8,16 +8,16 @@ public class LevelSelectManager : MonoBehaviour
     [SerializeField] private string currentDifficulty = "Easy";
     [SerializeField] private Transform levelButtonContainer;
     [SerializeField] private GameObject levelButtonPrefab;
-    [SerializeField] private ScrollRect scrollRect; // ScrollRect referansý
+    [SerializeField] private ScrollRect scrollRect; 
 
     [Header("UI Metinleri")]
     [SerializeField] private TextMeshProUGUI difficultyTitleText;
 
-    [Header("Görseller")]
+    [Header("Gï¿½rseller")]
     [SerializeField] private Color unlockedColor = Color.white;
     [SerializeField] private Color lockedColor = new Color(0.3f, 0.3f, 0.3f, 1f);
 
-    [Header("Panel Geçiþleri")]
+    [Header("Panel Geï¿½iï¿½leri")]
     [SerializeField] private GameObject mainMenuCanvas;
     [SerializeField] private GameObject gameHUDPanel;
 
@@ -30,11 +30,10 @@ public class LevelSelectManager : MonoBehaviour
     {
         if (scrollRect != null)
         {
-            // Dikey kaydýrmada 1 = En Üst (Baþlangýç)
-            // Yatay kaydýrmada 0 = En Sol (Baþlangýç)
+           
             scrollRect.verticalNormalizedPosition = 1f;
             scrollRect.horizontalNormalizedPosition = 0f;
-            scrollRect.velocity = Vector2.zero; // Kalan kayma momentumunu durdurur
+            scrollRect.velocity = Vector2.zero; 
         }
     }
 
@@ -119,7 +118,7 @@ public class LevelSelectManager : MonoBehaviour
             }
             else
             {
-                Debug.LogError($"LevelData bulunamadý: Resources/{path}");
+                Debug.LogError($"LevelData bulunamadï¿½: Resources/{path}");
             }
         }
     }

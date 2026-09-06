@@ -12,9 +12,7 @@ public class ColorNetwork
         Color = color;
     }
 
-    /// <summary>
-    /// Bu renk aðýnýn geçtiði tüm benzersiz hücreleri döner.
-    /// </summary>
+
     public HashSet<CellView> GetAllOccupiedCells()
     {
         HashSet<CellView> cells = new HashSet<CellView>();
@@ -28,9 +26,7 @@ public class ColorNetwork
         return cells;
     }
 
-    /// <summary>
-    /// Belirtilen hücre bu rengin herhangi bir dalýnda var mý?
-    /// </summary>
+
     public bool ContainsCell(CellView cell)
     {
         foreach (var branch in AllBranches)
@@ -40,9 +36,7 @@ public class ColorNetwork
         return false;
     }
 
-    /// <summary>
-    /// Bu renge ait tüm çizgileri ve verileri temizler.
-    /// </summary>
+
     public void Clear()
     {
         foreach (var line in Lines)

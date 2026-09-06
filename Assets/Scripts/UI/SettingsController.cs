@@ -25,12 +25,10 @@ public class SettingsController : MonoBehaviour
     private float lastMusicVolume = 1f;
     private float lastSfxVolume = 1f;
 
-    // Sahnedeki AudioManager referansý
     private AudioManager audioManager;
 
     private void Awake()
     {
-        // Sahnedeki AudioManager'ý otomatik bul
         audioManager = FindFirstObjectByType<AudioManager>();
     }
 
@@ -59,7 +57,6 @@ public class SettingsController : MonoBehaviour
         if (musicSlider != null) musicSlider.value = initialMusic;
         if (sfxSlider != null) sfxSlider.value = initialSfx;
 
-        // Baþlangýçta sesleri uygula
         ApplyMusicVolume(initialMusic);
         ApplySfxVolume(initialSfx);
 
@@ -67,7 +64,6 @@ public class SettingsController : MonoBehaviour
         UpdateSfxUI();
     }
 
-    // --- MÜZÝK KONTROLÜ ---
     public void ToggleMusic()
     {
         isMusicMuted = !isMusicMuted;
@@ -126,7 +122,6 @@ public class SettingsController : MonoBehaviour
         }
     }
 
-    // --- SFX KONTROLÜ ---
     public void ToggleSfx()
     {
         isSfxMuted = !isSfxMuted;

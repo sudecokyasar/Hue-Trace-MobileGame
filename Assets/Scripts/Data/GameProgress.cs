@@ -19,8 +19,7 @@ public static class GameProgress
             PlayerPrefs.Save();
         }
     }
-
-    // --- Y�ld�z Skorlar� ---
+    
 
     private static string StarsKey(string difficulty, int levelIndex) =>
         $"{difficulty}_Level{levelIndex}_Stars";
@@ -51,7 +50,7 @@ public static class GameProgress
         return total;
     }
 
-    // T�m zorluk modlar�ndaki (Easy + Normal + Hard) t�m levellerden toplanan y�ld�z
+    // Total Stars
     public static int GetTotalStarsAllDifficulties()
     {
         int total = 0;
@@ -62,7 +61,7 @@ public static class GameProgress
         return total;
     }
 
-    // Oyundaki maksimum ula��labilir y�ld�z say�s� (UI'da "X / Max" g�stermek i�in)
+    // Max Star Count
     public static int GetMaxPossibleStars()
     {
         return AllDifficulties.Length * TotalLevelsPerDifficulty * 3;

@@ -7,21 +7,18 @@ public class GridManager : MonoBehaviour
     [SerializeField] private LevelData currentLevel;
     [SerializeField] private CellView cellPrefab;
 
-    [Header("Grid Ölçüleri (Dünya Birimi)")]
+    [Header("Grids")]
     [SerializeField] private float cellSize = 1f;
     [SerializeField] private float cellSpacing = 0.08f;
     [SerializeField] private float verticalOffset = -0.5f;
 
-    [Header("Kamera Paylarý")]
+    [Header("Camera Paddings")]
     [SerializeField] private float horizontalPadding = 0.6f;
     [SerializeField] private float verticalPadding = 3.2f;
 
-    [Header("Header/Footer Referanslarý (Aspect-Ratio Baðýmsýz Kamera Ýçin)")]
-    [Tooltip("Header panelinin RectTransform'u. Atanýrsa, grid'in Header'ýn ALT kenarýna binmemesi için kamera bu bilgiye göre dinamik hesaplanýr.")]
+    [Header("Header/Footer")]
     [SerializeField] private RectTransform headerRectTransform;
-    [Tooltip("Footer panelinin RectTransform'u. Atanýrsa, grid'in Footer'ýn ÜST kenarýna binmemesi için kamera bu bilgiye göre dinamik hesaplanýr.")]
     [SerializeField] private RectTransform footerRectTransform;
-    [Tooltip("Header/Footer ile grid arasýnda ekstra nefes payý (ekran yüksekliðinin oraný olarak, üstten ve alttan ayrý ayrý uygulanýr).")]
     [SerializeField][Range(0f, 0.1f)] private float extraSafetyMarginViewport = 0.015f;
 
     private CellView[,] gridCells;
@@ -30,8 +27,7 @@ public class GridManager : MonoBehaviour
     public CellView[,] GridCells => gridCells;
     public LevelData CurrentLevel => currentLevel;
 
-    // Yeni bir level grid'e yüklendiðinde tetiklenir.
-    // UI veya baþka sistemler bu event'e abone olarak kendini güncelleyebilir.
+
     public static event System.Action<LevelData> OnLevelGenerated;
 
     private void Awake()
@@ -41,7 +37,6 @@ public class GridManager : MonoBehaviour
 
     private void Start()
     {
-        // GameDataHolder'dan gelen bilgilere göre doðru level verisini Resources'tan yükle
         string path = $"Levels/{GameDataHolder.SelectedDifficulty}/Level_{GameDataHolder.SelectedDifficulty}_{GameDataHolder.SelectedLevelNumber:00}";
         LevelData loadedLevel = Resources.Load<LevelData>(path);
 
@@ -51,7 +46,7 @@ public class GridManager : MonoBehaviour
         }
         else
         {
-            Debug.LogError($"LevelData bulunamadý: Resources/{path}");
+            Debug.LogError($"LevelData bulunamadï¿½: Resources/{path}");
         }
     }
 
@@ -88,7 +83,6 @@ public class GridManager : MonoBehaviour
         ApplySpecialCells(level);
         AdjustCamera(totalWidth, totalHeight);
 
-        // Level tamamen kurulduktan sonra dinleyicilere haber ver (UI güncellemesi vs.)
         OnLevelGenerated?.Invoke(level);
     }
     public CellView GetCellAtWorldPosition(Vector3 worldPos)
@@ -146,7 +140,7 @@ public class GridManager : MonoBehaviour
 
     private void ApplySpecialCells(LevelData level)
     {
-        // 1. Kilitli Hücreler
+        // 1. Kilitli Hï¿½creler
         if (level.lockedCells != null)
         {
             foreach (var lockData in level.lockedCells)
@@ -158,7 +152,6 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        // 2. Buz Hücreleri
         if (level.iceCells != null)
         {
             foreach (var icePos in level.iceCells)
@@ -170,7 +163,6 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        // 3. Köprü Hücreleri
         if (level.bridgeCells != null)
         {
             foreach (var bridgePos in level.bridgeCells)
@@ -182,7 +174,6 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        // 4. Renk Karýþtýrma Hücreleri
         if (level.mixRules != null)
         {
             foreach (var rule in level.mixRules)
@@ -192,7 +183,6 @@ public class GridManager : MonoBehaviour
                     gridCells[rule.mixCellPos.x, rule.mixCellPos.y].SetMixCell(rule);
                 }
 
-                // Karýþým sonucunun gideceði hedef taþý yerleþtir
                 if (IsValidCoord(rule.resultTargetPos))
                 {
                     gridCells[rule.resultTargetPos.x, rule.resultTargetPos.y].SetStone(rule.resultColor);
@@ -212,20 +202,7 @@ public class GridManager : MonoBehaviour
         float screenAspect = (float)Screen.width / Screen.height;
 
         float sizeBasedOnWidth = (targetWidth / 2f) / screenAspect;
-
-        // --- DÝKEY BOYUT: Header/Footer'ýn gerçek ekran konumuna göre ---
-        // Eskiden burada sabit bir "verticalPadding" world-unit deðeri
-        // kullanýlýyordu. Bu, telefon oranýnda (dar/uzun ekran) tesadüfen
-        // yetiyordu ama iPad gibi daha kare oranlý ekranlarda Header/Footer
-        // gerçekte ekranýn daha büyük bir kýsmýný kapladýðý için grid
-        // onlarýn üstüne biniyordu.
-        //
-        // Artýk (headerRectTransform / footerRectTransform atanmýþsa)
-        // Header'ýn ALT kenarý ile Footer'ýn ÜST kenarýnýn gerçek ekran
-        // piksel konumlarýný okuyup, grid'in SADECE o ikisi arasýndaki
-        // boþluða sýðmasýný saðlayacak orthographicSize'ý hesaplýyoruz.
-        // Bu hesap ekran en/boy oranýndan baðýmsýzdýr; telefon da olsa
-        // tablet de olsa doðru sonuç verir.
+        
         float availableViewportFraction = GetAvailableVerticalViewportFraction();
 
         float sizeBasedOnHeight;
@@ -236,7 +213,6 @@ public class GridManager : MonoBehaviour
         }
         else
         {
-            // Header/Footer referansý atanmamýþsa eski sabit-padding davranýþýna düþ.
             float targetHeight = totalGridHeight + verticalPadding;
             sizeBasedOnHeight = targetHeight / 2f;
         }
@@ -247,11 +223,7 @@ public class GridManager : MonoBehaviour
         mainCam.transform.position = new Vector3(0f, cameraY, -10f);
     }
 
-    /// <summary>
-    /// Header'ýn alt kenarý ile Footer'ýn üst kenarý arasýnda kalan,
-    /// grid için kullanýlabilir dikey alanýn, TÜM ekran yüksekliðine
-    /// oranýný (0-1 arasý) döner. Referanslar atanmamýþsa -1 döner.
-    /// </summary>
+   
     private float GetAvailableVerticalViewportFraction()
     {
         if (headerRectTransform == null || footerRectTransform == null) return -1f;
@@ -263,16 +235,12 @@ public class GridManager : MonoBehaviour
         if (availablePixels <= 0f || Screen.height <= 0) return -1f;
 
         float fraction = availablePixels / Screen.height;
-        fraction -= extraSafetyMarginViewport * 2f; // üstten ve alttan küçük bir nefes payý
+        fraction -= extraSafetyMarginViewport * 2f; 
 
         return Mathf.Clamp01(fraction);
     }
 
-    /// <summary>
-    /// Grid'in dikeyde ortalanacaðý kamera Y konumunu, Header/Footer
-    /// arasýndaki boþluðun tam ortasýna denk gelecek þekilde hesaplar.
-    /// Referanslar atanmamýþsa eski sabit "verticalOffset" davranýþýna düþer.
-    /// </summary>
+   
     private float ComputeCameraYForVerticalCentering(float orthoSize)
     {
         if (headerRectTransform == null || footerRectTransform == null)
@@ -285,20 +253,16 @@ public class GridManager : MonoBehaviour
             return verticalOffset;
 
         float gapCenterScreenY = (headerBottomScreenY + footerTopScreenY) / 2f;
-        float gapCenterViewportY = gapCenterScreenY / Screen.height; // 0 (ekran altý) - 1 (ekran üstü)
+        float gapCenterViewportY = gapCenterScreenY / Screen.height; 
 
-        // viewport 0.5  -> kameranýn Y konumu
-        // viewport 1.0  -> kameraY + orthoSize
-        // viewport 0.0  -> kameraY - orthoSize
-        // Grid'in dikey merkezi (verticalOffset) tam bu boþluðun ortasýna
-        // denk gelsin istiyoruz:
+        
         return verticalOffset - (gapCenterViewportY - 0.5f) * 2f * orthoSize;
     }
 
     private float GetRectScreenBottomY(RectTransform rect)
     {
         Vector3[] corners = new Vector3[4];
-        rect.GetWorldCorners(corners); // [0]=sol-alt [1]=sol-üst [2]=sað-üst [3]=sað-alt
+        rect.GetWorldCorners(corners); 
 
         Camera uiCam = GetUiCameraFor(rect);
         Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(uiCam, corners[0]);
@@ -315,10 +279,7 @@ public class GridManager : MonoBehaviour
         return screenPoint.y;
     }
 
-    // Screen Space - Overlay canvas'larda kamera null olmalý (RectTransformUtility
-    // bunu otomatik olarak zaten ekran piksel koordinatý gibi ele alýyor).
-    // Screen Space - Camera / World Space canvas'larda ise canvas'ýn kendi
-    // worldCamera'sýný kullanmak gerekiyor.
+    
     private Camera GetUiCameraFor(RectTransform rect)
     {
         Canvas canvas = rect.GetComponentInParent<Canvas>();

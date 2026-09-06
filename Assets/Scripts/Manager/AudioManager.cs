@@ -4,32 +4,25 @@ public class AudioManager : MonoBehaviour
 {
     public static AudioManager Instance { get; private set; }
 
-    [Header("Arka Plan Müziði (Loop)")]
+    [Header("Loop Music")]
     [SerializeField] private AudioClip backgroundMusic;
     [SerializeField][Range(0f, 1f)] private float musicVolume = 0.6f;
 
     [Header("Ses Efektleri")]
-    [Tooltip("Ýki ayný renk birleþince çalar.")]
     [SerializeField] private AudioClip connectionSfx;
-    [Tooltip("Level tamamlandýðýnda çalar.")]
     [SerializeField] private AudioClip levelCompleteSfx;
-    [Tooltip("Buz hücresinden geçilip kýrýldýðýnda çalar.")]
     [SerializeField] private AudioClip iceBreakSfx;
-    [Tooltip("Herhangi bir UI butonuna týklandýðýnda çalar.")]
     [SerializeField] private AudioClip buttonClickSfx;
 
-    [Header("Ses Efekti Ayarlarý")]
+    [Header("Ses Efekti Ayarlari")]
     [SerializeField][Range(0f, 1f)] private float sfxVolume = 1f;
 
-    // PlayerPrefs anahtarý: müzik tercihini kalýcý hale getirir.
     private const string MusicEnabledKey = "MusicEnabled";
 
     private AudioSource musicSource;
     private AudioSource sfxSource;
 
-    // Kaydedilmiþ tercihe göre müziðin açýk olup olmadýðý.
-    // SettingsController'daki UI, butonun görselini (ikon vb.) bu
-    // deðere göre ayarlayabilir.
+
     public bool IsMusicEnabled { get; private set; } = true;
 
     private void Awake()
@@ -41,7 +34,6 @@ public class AudioManager : MonoBehaviour
         }
         Instance = this;
 
-        // Kaydedilmiþ tercihi oku (varsayýlan: açýk = 1).
         IsMusicEnabled = PlayerPrefs.GetInt(MusicEnabledKey, 1) == 1;
 
         musicSource = gameObject.AddComponent<AudioSource>();
@@ -57,7 +49,6 @@ public class AudioManager : MonoBehaviour
 
     private void Start()
     {
-        // Kullanýcý daha önce müziði kapattýysa burada hiç baþlatýlmaz.
         if (IsMusicEnabled)
         {
             PlayMusic();
@@ -98,9 +89,7 @@ public class AudioManager : MonoBehaviour
         }
     }
 
-    // SettingsController'daki müzik butonu BUNU çaðýrýyor.
-    // Tercih PlayerPrefs'e kaydedilir, bir sonraki oyun açýlýþýnda da
-    // (yani Start() tekrar çalýþtýðýnda) hatýrlanýr.
+
     public void SetMusicEnabled(bool enabled)
     {
         IsMusicEnabled = enabled;

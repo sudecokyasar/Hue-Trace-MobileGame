@@ -11,7 +11,6 @@ public class PathDrawer : MonoBehaviour
 
     [Header("Görsel & Efekt Ayarları")]
     [SerializeField] private float hdrIntensity = 1.8f;
-    [Tooltip("Elektrik akımının hattın başından sonuna akma süresi (saniye)")]
     [SerializeField] private float pulseDuration = 0.28f;
 
     private bool isDrawing = false;
@@ -22,19 +21,7 @@ public class PathDrawer : MonoBehaviour
     private Dictionary<Color, ColorNetwork> colorNetworks = new Dictionary<Color, ColorNetwork>();
     private List<LineRenderer> activeLines = new List<LineRenderer>();
 
-    /// <summary>
-    /// Hangi çizginin hangi renk network'üne ve hangi branch'e (hücre
-    /// listesine) ait olduğunu tutar. Undo işleminde SADECE görsel
-    /// çizgiyi değil, ColorNetwork.AllBranches içindeki gerçek bağlantı
-    /// verisini de birlikte geri almak için gerekli.
-    ///
-    /// NOT / BUG FIX: Eskiden UndoLastLine() sadece LineRenderer'ı
-    /// (görseli) siliyordu, ColorNetwork.AllBranches'teki veriyi hiç
-    /// temizlemiyordu. Bu yüzden bir rengi bağlayıp undo yapınca, o
-    /// renk sistem tarafından hâlâ "bağlı" sayılıyordu (sadece ekranda
-    /// çizgi görünmüyordu). Sonuç: 3 renkten 1'i undo edilmiş olsa bile
-    /// diğer 2 renk bağlanınca level yanlışlıkla "tamamlandı" sayılıyordu.
-    /// </summary>
+   
     private class ConnectionRecord
     {
         public Color Color;
@@ -182,13 +169,7 @@ public class PathDrawer : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// DÜZELTİLDİ: Artık sadece görsel çizgiyi değil, ColorNetwork
-    /// içindeki gerçek bağlantı verisini (branch) ve o network'ün
-    /// Lines listesindeki kaydı da birlikte geri alıyor. Bu sayede
-    /// undo edilen bir renk, level tamamlama kontrolünde artık
-    /// "bağlı" sayılmıyor.
-    /// </summary>
+   
     public void UndoLastLine()
     {
         if (connectionHistory == null || connectionHistory.Count == 0) return;
@@ -213,8 +194,7 @@ public class PathDrawer : MonoBehaviour
             Destroy(last.Line.gameObject);
         }
         
-        // Undo edilen bağ bir mix hücresinin girdisiyse, mix sonucu
-        // artık geçerli olmayabilir - yeniden değerlendir.
+        
         CheckMixCells();
     }
 
@@ -241,17 +221,8 @@ public class PathDrawer : MonoBehaviour
             colorNetworks.Clear();
         }
 
-        // Undo geçmişi de sıfırlanmalı, aksi halde bir önceki levelden
-        // kalan referanslar (artık var olmayan hücre/çizgi nesnelerine
-        // işaret eden ConnectionRecord'lar) tutulmaya devam eder.
         connectionHistory.Clear();
 
-        // Restart / Try Again / Menu / Play Again gibi durumlarda level
-        // yeniden üretilmese bile (aynı hücre nesneleri korunsa bile)
-        // hücrelerin oyun-içi özel durumları (kırılmış buz, aktifleşmiş
-        // mix hücresi) sıfırlanmalı. Aksi halde örn. kırılan buz, board
-        // yeniden üretilmeden yapılan bir restart sonrası kırık kalmaya
-        // devam ediyordu.
         ResetSpecialCellStates();
 
         MoveCount = 0;
@@ -317,10 +288,7 @@ public class PathDrawer : MonoBehaviour
 
         if (isValidConnection)
         {
-            // Branch referansını bir değişkende tutuyoruz ki hem network'e
-            // hem de undo geçmişine AYNI listeyi (referansı) ekleyelim -
-            // böylece undo'da network.AllBranches.Remove() referans bazlı
-            // çalışıp doğru elemanı bulabilsin.
+            
             List<CellView> branch = new List<CellView>(currentPath);
             network.AllBranches.Add(branch);
             network.Lines.Add(activeLine);
@@ -360,9 +328,7 @@ public class PathDrawer : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Akımı çizginin ucundan dışarı akıtıp sıfırlayan güncel elektrik dalgası fonksiyonu.
-    /// </summary>
+ 
     private IEnumerator PlayElectricCurrent(LineRenderer line, Color baseColor)
     {
         if (line == null) yield break;
@@ -392,7 +358,6 @@ public class PathDrawer : MonoBehaviour
             float peakPos = Mathf.Clamp01(t);
             float endPos = Mathf.Clamp01(t + pulseWidth);
 
-            // Eğer akım çizginin dışına çıktıysa artık beyazlık basma
             Color currentCenterColor = (t >= 0f && t <= 1f) ? electricPulseColor : baseHdr;
 
             Gradient gradient = new Gradient();
@@ -416,7 +381,6 @@ public class PathDrawer : MonoBehaviour
             yield return null;
         }
 
-        // BİTİŞ: Çizgiyi tamamen 2 anahtarlı düz ve net kendi rengine sıfırla (Beyazlık kalmaz!)
         if (line != null)
         {
             Gradient flatGradient = new Gradient();

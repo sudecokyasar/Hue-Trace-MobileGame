@@ -2,34 +2,21 @@
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>
-/// Renk Tasi level generator.
-/// Ana hedef: her uretilen level icin gridin %100'u, birbirine dik komsu
-/// hucrelerden olusan renk cozum yollari tarafindan kaplanir - ve boyle
-/// EN AZ BIR gecerli cozumun var oldugu garanti edilir (tekillik ARANMAZ,
-/// birden fazla cozum olmasi sorun degildir).
-///
-/// Connect referansindaki temel fikir:
-/// - Once cozum board'u doldur.
-/// - Sonra o cozumun uzerinden oyun tasarimini cikar.
-/// - Bos hucre varsa level ASLA kaydedilmez.
-/// - Board'u dolduran HICBIR yol yoksa level ASLA kaydedilmez
-///   (en az 1 cozum garantisi). Birden fazla yol olmasi kabul edilir.
-/// </summary>
+
 public class LevelGeneratorEditor : EditorWindow
 {
     private static readonly Color[] ColorPalette =
     {
-    new Color(1.00f, 0.20f, 0.38f, 1f), // Kırmızı (Ultra Canlı Neon Çilek / #FF3361)
-    new Color(0.12f, 0.65f, 1.00f, 1f), // Mavi (Elektrik Mavisi / #1FA6FF)
-    new Color(0.36f, 0.90f, 0.42f, 1f), // Yeşil (#5CE56A - Canlı Nane)
-    new Color(1.00f, 0.80f, 0.33f, 1f), // Sarı (#FFCD53 - Güneş Sarısı)
-    new Color(0.75f, 0.25f, 1.00f, 1f), // Mor (Elektrik Neon Menekşe / #BF40FF)
-    new Color(1.00f, 0.48f, 0.15f, 1f), // Turuncu (Neon Mandalina / #FF7A26)
-    new Color(0.16f, 0.97f, 1.00f, 1f), // Cyan (#28F7FF - Parlak Neon Camgöbeği)
-    new Color(0.98f, 0.57f, 0.78f, 1f), // Pembe (#FA91C6 - Canlı Şeker Pembe)
-    new Color(0.60f, 1.00f, 0.10f, 1f), // Lime (Lazer Lime / #99FF1A)
-    new Color(1.00f, 1.00f, 1.00f, 1f)  // Beyaz (Saf Parlak Beyaz / #FFFFFF)
+    new Color(1.00f, 0.20f, 0.38f, 1f), // Red #FF3361
+    new Color(0.12f, 0.65f, 1.00f, 1f), // Blue #1FA6FF
+    new Color(0.36f, 0.90f, 0.42f, 1f), // Green #5CE56A
+    new Color(1.00f, 0.80f, 0.33f, 1f), // Yellow #FFCD53
+    new Color(0.75f, 0.25f, 1.00f, 1f), // Purple #BF40FF
+    new Color(1.00f, 0.48f, 0.15f, 1f), // Orange #FF7A26
+    new Color(0.16f, 0.97f, 1.00f, 1f), // Cyan #28F7FF
+    new Color(0.98f, 0.57f, 0.78f, 1f), // Pink#FA91C6
+    new Color(0.60f, 1.00f, 0.10f, 1f), // Lime #99FF1A
+    new Color(1.00f, 1.00f, 1.00f, 1f)  // White #FFFFFF
 };
     private static readonly Vector2Int[] Dirs4 =
     {
@@ -39,38 +26,27 @@ public class LevelGeneratorEditor : EditorWindow
         Vector2Int.right
     };
 
-    // IMPORTANT: keep generation fast where possible. Tek-cozum dogrulamasi
-    // eklendigi icin gecerli bir level bulmak eskisine gore çok daha
-    // seyrek rastlanan bir durum; bu yuzden deneme sayisi yukseltildi.
+
     private const int MaxLevelAttempts = 400;
     private const int MaxPathRestarts = 18;
     private const int MaxBacktrackSteps = 45000;
 
     // Gameplay quality constraints.
-    // A color path must be at least 4 cells and contain at least 2 turns.
-    // Endpoints of the same color may NOT be directly adjacent.
     private const int MinimumPathCells = 4;
     private const int MinimumTurns = 1;
     private const int MinimumEndpointManhattanDistance = 2;
-
-    // Also keep different endpoint stones away from one another where possible.
-    // This reduces "touching" starts/ends and makes generated boards feel cleaner.
+    
     private const int MinimumAnyEndpointDistance = 1;
-
-    // Zorluk basina level sayisi (toplam 300 level).
+    
     private const int LevelsPerDifficulty = 100;
 
-    [MenuItem("Renk Tasi/300 Seviyeyi Otomatik Uret - Full Fill (Easy+Normal+Hard)")]
+    [MenuItem("All Levels (300)")]
     public static void GenerateAll300Levels()
     {
         EnsureFoldersExist();
 
         var totalResult = new GenerationResult();
-
-        // KRITIK: Tek-cozum dogrulamasi node-butceli oldugu icin artik
-        // asla sonsuza kadar takilmaz, ama 100 tane 9x9 Hard level icin
-        // yine de UZUN surebilir (Hard'i kendi menu ogesinden ayri
-        // calistirip gece boyu birakmak pratikte daha rahat olabilir).
+        
         try
         {
             GenerateDifficultyBatch(
@@ -104,11 +80,9 @@ public class LevelGeneratorEditor : EditorWindow
 
         ShowResultDialog(totalResult, expectedTotal: LevelsPerDifficulty * 3);
     }
+    
 
-    // Tek tek zorluk uretmek istersen (ornegin sadece Hard'i gece boyu
-    // calistirmak icin) bu menu ogelerini kullanabilirsin.
-
-    [MenuItem("Renk Tasi/Sadece Easy Uret (100)")]
+    [MenuItem("Easy (100)")]
     public static void GenerateEasyOnly()
     {
         EnsureFoldersExist();
@@ -131,7 +105,7 @@ public class LevelGeneratorEditor : EditorWindow
         ShowResultDialog(result, expectedTotal: LevelsPerDifficulty);
     }
 
-    [MenuItem("Renk Tasi/Sadece Normal Uret (100)")]
+    [MenuItem("Normal (100)")]
     public static void GenerateNormalOnly()
     {
         EnsureFoldersExist();
@@ -154,7 +128,7 @@ public class LevelGeneratorEditor : EditorWindow
         ShowResultDialog(result, expectedTotal: LevelsPerDifficulty);
     }
 
-    [MenuItem("Renk Tasi/Sadece Hard Uret (100)")]
+    [MenuItem("Hard (100)")]
     public static void GenerateHardOnly()
     {
         EnsureFoldersExist();
@@ -224,34 +198,19 @@ public class LevelGeneratorEditor : EditorWindow
         }
     }
 
-    /// <summary>
-    /// 100 leveli tek bir sabit renk sayisiyla degil, kademeli zorlukla
-    /// uretmek icin renk sayisini seviyeye gore olcekler.
-    /// Grid basina maksimum makul renk sayisi = (genislik*yukseklik) / 4
-    /// (her renk en az MinimumPathCells=4 hucre kapladigi icin).
-    /// 5x5 = 25 hucre -> max ~6 renk
-    /// 7x7 = 49 hucre -> max ~12 renk (solver performansi icin dusuk tutuldu)
-    /// 9x9 = 81 hucre -> max ~20 renk (ayni sekilde performans icin sinirlandi)
-    /// </summary>
     private static int GetColorCountForLevel(DifficultyMode diff, int levelNumber)
     {
-        // 1..100 araligini 4 esit dilime bol (1-25, 26-50, 51-75, 76-100).
         int tier = Mathf.Clamp((levelNumber - 1) / 25, 0, 3);
 
         switch (diff)
         {
             case DifficultyMode.Easy:
-                // 5x5 grid: 3 -> 4 -> 5 -> 6 renk
                 return 3 + tier;
 
             case DifficultyMode.Normal:
-                // 7x7 grid: 5 -> 6 -> 7 -> 8 renk
                 return 5 + tier;
 
-            default: // Hard
-                // 9x9 grid: 6 -> 7 -> 8 -> 9 renk
-                // (solver maliyeti renk arttikca hizla buyudugu icin
-                // Hard'da 9'un ustune cikilmiyor)
+            default: 
                 return 6 + tier;
         }
     }
@@ -311,10 +270,7 @@ public class LevelGeneratorEditor : EditorWindow
                 failSplit++;
                 continue;
             }
-
-            // Do not accept tiny / nearly straight routes.
-            // This specifically fixes cases such as two same-color nodes
-            // touching each other or being connectable in one move.
+            
             if (!ValidatePathShapesAndEndpointSpacing(paths))
             {
                 failShape++;
@@ -323,13 +279,7 @@ public class LevelGeneratorEditor : EditorWindow
 
             int[,] ownerGrid = BuildOwnerGrid(paths, width, height);
 
-            // Burasi eski generator'dan daha guclu bir kontroldur:
-            // sadece ownerGrid dolu mu degil, tum path hucreleri:
-            // - grid icinde mi
-            // - unique mi
-            // - ard���k olarak dik komsu mu
-            // - her renk en az 2 hucre mi
-            // kontrol edilir.
+            
             if (!ValidateCompleteSolution(paths, ownerGrid, width, height))
             {
                 failCompleteSolution++;
@@ -354,12 +304,10 @@ public class LevelGeneratorEditor : EditorWindow
                 level.optimalMoves,
                 Mathf.RoundToInt(level.optimalMoves * moveMultiplier));
 
-            // Once FULL solution kuruldu.
-            // Sonra o dolu solution uzerine mekanikler bindiriliyor.
+
             ApplySpecialMechanics(level, paths, ownerGrid, width, height, diff);
 
-            // Ozel mekanikler coverage'i degistirmemeli.
-            // Son final gate burada.
+
             if (!ValidateLevelAssetCoverage(level, paths, ownerGrid, width, height))
             {
                 Object.DestroyImmediate(level);
@@ -367,16 +315,7 @@ public class LevelGeneratorEditor : EditorWindow
                 continue;
             }
 
-            // EN AZ 1 COZUM GARANTISI (tekillik ARANMIYOR).
-            // Zaten 'paths' listesinin kendisi board'u %100 dolduran
-            // gecerli bir cozumdur (ValidateCompleteSolution bunu az
-            // once dogruladi) - yani cozumun VAR OLDUGU inşa geregi
-            // zaten garanti. Bu solver cagrisi sadece ekstra bir
-            // guvenlik agi: ozel mekanikler (kilitli hucreler vs.)
-            // ileride degisirse diye "gercekten hicbir cozum yok mu"
-            // diye tekrar kontrol ediyoruz. Birden fazla cozum olmasi
-            // artik SORUN DEGIL, o yuzden cap:1 yeterli (ilk cozumu
-            // bulunca arama durur, cok daha hizli).
+            
             if (LevelSolver.CanVerifyUniqueness(level))
             {
                 int solutionCount = LevelSolver.CountFullFillSolutions(
@@ -446,12 +385,6 @@ public class LevelGeneratorEditor : EditorWindow
                 extraEndpoints = new List<Vector2Int>()
             };
 
-            // NOT: Onceki surumde Hard modda 3+ uclu renk (extraEndpoints)
-            // mekanigi buradaydi. Bu mekanik "her hucre tek bir renge ait"
-            // varsayimini bozdugu icin LevelSolver'in tek-cozum dogrulamasi
-            // yapmasini imkansiz kiliyordu; bu yuzden kaldirildi. Tekrar
-            // eklemek istersen, LevelSolver'i buna gore genisletmen gerekir.
-
             level.colorPairs.Add(pair);
         }
     }
@@ -476,16 +409,7 @@ public class LevelGeneratorEditor : EditorWindow
 
         AssignLockedCells(level, paths, lockTarget);
         AssignIceCells(level, paths, lockTarget, iceTarget);
-
-        // NOT: AssignBridgeCells cagrisi bilerek KALDIRILDI. Bridge
-        // hucreleri iki farkli rengin ayni hucreyi paylasmasina izin
-        // verir, bu da "board'u tam dolduran TEK bir renk-hucre eslesmesi
-        // var" garantisini imkansiz kilar. Tek-cozum garantisi istedigin
-        // surece bu mekanigi kapali tut.
-
-        // Mix burada bilerek uretilmiyor.
-        // Runtime mix mekanigi yeni result network/endpoints davranisini
-        // daha kesin tanimlamadan otomatik level uretimine zorlamak istemiyoruz.
+        
     }
 
     private static void AssignLockedCells(
@@ -589,8 +513,7 @@ public class LevelGeneratorEditor : EditorWindow
     private static List<Vector2Int> GenerateSpaceFillingPath(int width, int height)
     {
         int total = width * height;
-
-        // Birden fazla random restart ile farkli boardlar.
+        
         for (int restart = 0; restart < MaxPathRestarts; restart++)
         {
             bool[,] visited = new bool[width, height];
@@ -615,16 +538,12 @@ public class LevelGeneratorEditor : EditorWindow
                 return path;
             }
         }
-
-        // Matematiksel fallback: her dikdortgen icin tam coverage.
-        // Bu, bos grid riskini tamamen ortadan kaldirir.
+        
         return GenerateBoustrophedonPath(width, height);
     }
 
     private static Vector2Int PickGoodStart(int width, int height, int restart)
     {
-        // Mostly random starts keep levels different without making the
-        // generator expensive.
         if (restart < MaxPathRestarts - 4)
         {
             return new Vector2Int(
@@ -708,9 +627,7 @@ public class LevelGeneratorEditor : EditorWindow
         }
 
         ShuffleList(result);
-
-        // Connect benzeri "bos alani kaybetme" davranisini destekleyen
-        // Warnsdorff siralamasi.
+        
         result.Sort((a, b) =>
             CountUnvisitedNeighbors(a, visited, width, height)
             .CompareTo(
@@ -826,7 +743,6 @@ public class LevelGeneratorEditor : EditorWindow
         if (cursor != total)
             return null;
 
-        // Never accept a final segment that somehow fell below the minimum.
         for (int i = 0; i < segments.Count; i++)
         {
             if (segments[i].Count < minLength)
@@ -853,16 +769,13 @@ public class LevelGeneratorEditor : EditorWindow
             if (path == null || path.Count < MinimumPathCells)
                 return false;
 
-            // A route should visually read as a real path, not just a straight
-            // line between two touching nodes.
+
             if (CountTurns(path) < MinimumTurns)
                 return false;
 
             Vector2Int start = path[0];
             Vector2Int end = path[path.Count - 1];
 
-            // This is the direct-connect protection:
-            // same-color endpoints can never be side-by-side.
             if (ManhattanDistance(start, end) <
                 MinimumEndpointManhattanDistance)
             {
@@ -873,9 +786,6 @@ public class LevelGeneratorEditor : EditorWindow
             allEndpoints.Add(end);
         }
 
-        // Keep endpoint stones separated where practical.
-        // This is stricter than the same-color rule and prevents a board
-        // full of visually touching nodes.
         for (int i = 0; i < allEndpoints.Count; i++)
         {
             for (int j = i + 1; j < allEndpoints.Count; j++)
@@ -1064,8 +974,6 @@ public class LevelGeneratorEditor : EditorWindow
                     return false;
             }
         }
-
-        // Ozel hucreler grid disina cikamaz.
         foreach (LockedCellData locked in level.lockedCells)
         {
             if (!IsInside(locked.position, width, height))
@@ -1084,7 +992,6 @@ public class LevelGeneratorEditor : EditorWindow
                 return false;
         }
 
-        // Special cell'ler bos bir h�creye yerlestirilemez.
         if (!AllSpecialCellsBelongToSolution(
                 level,
                 ownerGrid,
@@ -1123,20 +1030,14 @@ public class LevelGeneratorEditor : EditorWindow
 
         return true;
     }
-
-    /// <summary>
-    /// Grid buyudukce olasi cozum uzayi katlanarak buyudugu icin solver'a
-    /// verilen node butcesi de grid boyutuna gore olceklendirilir. Bu
-    /// sayilar deneme-yanilma ile ayarlanabilir; amac Editor'i kilitlemeden
-    /// makul surede sonuc almak.
-    /// </summary>
+    
     private static int GetNodeBudgetFor(int width, int height)
     {
         int cellCount = width * height;
 
-        if (cellCount <= 25) return 150_000;   // 5x5 (Easy)
-        if (cellCount <= 49) return 400_000;   // 7x7 (Normal)
-        return 800_000;                        // 9x9 (Hard)
+        if (cellCount <= 25) return 150_000;  
+        if (cellCount <= 49) return 400_000;   
+        return 800_000;                        
     }
 
     // ============================================================
@@ -1229,7 +1130,6 @@ public class LevelGeneratorEditor : EditorWindow
 
             if (level == null) continue;
 
-            // 1. ColorPair renklerini sırayla yeni paletten ata
             if (level.colorPairs != null)
             {
                 for (int i = 0; i < level.colorPairs.Count; i++)
@@ -1238,7 +1138,6 @@ public class LevelGeneratorEditor : EditorWindow
                 }
             }
 
-            // 2. Kilitli hucrelerin renklerini de eslesen renkle senkronize et
             if (level.lockedCells != null && level.colorPairs != null)
             {
                 for (int i = 0; i < level.lockedCells.Count; i++)

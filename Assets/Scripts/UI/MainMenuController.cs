@@ -7,7 +7,7 @@ public class MainMenuController : MonoBehaviour
     [SerializeField] private GameObject modeSelectPanel;
     [SerializeField] private GameObject levelSelectPanel;
 
-    [Header("Seviye Seçim Yöneticisi")]
+    [Header("Seviye Seï¿½im Yï¿½neticisi")]
     [SerializeField] private LevelSelectManager levelSelectManager;
 
     private void Start()
@@ -30,15 +30,12 @@ public class MainMenuController : MonoBehaviour
 
     public void OnClickContinueButton()
     {
-        // En son oynanan veya varsayýlan zorluk seviyesini al
         string lastDifficulty = string.IsNullOrEmpty(GameDataHolder.SelectedDifficulty)
             ? "Easy"
             : GameDataHolder.SelectedDifficulty;
 
-        // O zorlukta kalýnan en yüksek açýk seviyeyi al
         int currentUnlockedLevel = GameProgress.GetUnlockedLevel(lastDifficulty);
 
-        // Seviyeyi doðrudan baþlat
         if (levelSelectManager != null)
         {
             levelSelectManager.LoadLevel(lastDifficulty, currentUnlockedLevel);
