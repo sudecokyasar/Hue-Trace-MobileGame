@@ -82,6 +82,6 @@ Proje; **Easy / Normal / Hard** olmak üzere üç zorluk modu, mod başına 100 
 Bu proje iki kişilik bağımsız bir ekip tarafından ortak emekle geliştirilmiştir:
 
 * **Sude Çokyaşar** - Görsel Tasarım, 2D Çizimler & Oyun Geliştirme
-* **Toprak Kaya** —-Oyun Mekaniği, Sistem Tasarımı & Oyun Geliştirme
+* **Toprak Kaya** - Oyun Mekaniği, Sistem Tasarımı & Oyun Geliştirme
 
 ---
