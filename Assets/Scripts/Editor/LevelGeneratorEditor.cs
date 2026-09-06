@@ -1,39 +1,36 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
 /// <summary>
 /// Renk Tasi level generator.
 /// Ana hedef: her uretilen level icin gridin %100'u, birbirine dik komsu
-/// hucrelerden olusan renk cozum yollari tarafindan kaplanir.
+/// hucrelerden olusan renk cozum yollari tarafindan kaplanir - ve boyle
+/// EN AZ BIR gecerli cozumun var oldugu garanti edilir (tekillik ARANMAZ,
+/// birden fazla cozum olmasi sorun degildir).
 ///
 /// Connect referansindaki temel fikir:
 /// - Once cozum board'u doldur.
 /// - Sonra o cozumun uzerinden oyun tasarimini cikar.
 /// - Bos hucre varsa level ASLA kaydedilmez.
-///
-/// FAST SURUM:
-/// - DFS sirasinda BFS/region taramasi YOK.
-/// - Full board once uretiliyor.
-/// - Kalite kontrolleri sonradan yapiliyor.
-/// - Bu nedenle 60 level uretimi gereksiz yere dakikalar surmuyor.
+/// - Board'u dolduran HICBIR yol yoksa level ASLA kaydedilmez
+///   (en az 1 cozum garantisi). Birden fazla yol olmasi kabul edilir.
 /// </summary>
 public class LevelGeneratorEditor : EditorWindow
 {
     private static readonly Color[] ColorPalette =
     {
-        new Color(0.95f, 0.20f, 0.20f, 1f), // Kirmizi
-        new Color(0.20f, 0.50f, 1.00f, 1f), // Mavi
-        new Color(0.15f, 0.85f, 0.35f, 1f), // Yesil
-        new Color(1.00f, 0.80f, 0.10f, 1f), // Sari
-        new Color(0.70f, 0.25f, 0.95f, 1f), // Mor
-        new Color(1.00f, 0.45f, 0.10f, 1f), // Turuncu
-        new Color(0.10f, 0.85f, 0.90f, 1f), // Cyan
-        new Color(0.95f, 0.30f, 0.70f, 1f), // Pembe
-        new Color(0.55f, 0.90f, 0.15f, 1f), // Lime
-        new Color(0.90f, 0.90f, 0.90f, 1f)  // Beyaz
-    };
-
+    new Color(1.00f, 0.20f, 0.38f, 1f), // Kırmızı (Ultra Canlı Neon Çilek / #FF3361)
+    new Color(0.12f, 0.65f, 1.00f, 1f), // Mavi (Elektrik Mavisi / #1FA6FF)
+    new Color(0.36f, 0.90f, 0.42f, 1f), // Yeşil (#5CE56A - Canlı Nane)
+    new Color(1.00f, 0.80f, 0.33f, 1f), // Sarı (#FFCD53 - Güneş Sarısı)
+    new Color(0.75f, 0.25f, 1.00f, 1f), // Mor (Elektrik Neon Menekşe / #BF40FF)
+    new Color(1.00f, 0.48f, 0.15f, 1f), // Turuncu (Neon Mandalina / #FF7A26)
+    new Color(0.16f, 0.97f, 1.00f, 1f), // Cyan (#28F7FF - Parlak Neon Camgöbeği)
+    new Color(0.98f, 0.57f, 0.78f, 1f), // Pembe (#FA91C6 - Canlı Şeker Pembe)
+    new Color(0.60f, 1.00f, 0.10f, 1f), // Lime (Lazer Lime / #99FF1A)
+    new Color(1.00f, 1.00f, 1.00f, 1f)  // Beyaz (Saf Parlak Beyaz / #FFFFFF)
+};
     private static readonly Vector2Int[] Dirs4 =
     {
         Vector2Int.up,
@@ -42,11 +39,10 @@ public class LevelGeneratorEditor : EditorWindow
         Vector2Int.right
     };
 
-    // IMPORTANT: keep generation fast. The old version combined many retries
-    // with a BFS after almost every DFS step, which made 60-level generation
-    // take minutes. This version does cheap DFS only and validates the result
-    // afterwards.
-    private const int MaxLevelAttempts = 45;
+    // IMPORTANT: keep generation fast where possible. Tek-cozum dogrulamasi
+    // eklendigi icin gecerli bir level bulmak eskisine gore çok daha
+    // seyrek rastlanan bir durum; bu yuzden deneme sayisi yukseltildi.
+    private const int MaxLevelAttempts = 400;
     private const int MaxPathRestarts = 18;
     private const int MaxBacktrackSteps = 45000;
 
@@ -61,85 +57,214 @@ public class LevelGeneratorEditor : EditorWindow
     // This reduces "touching" starts/ends and makes generated boards feel cleaner.
     private const int MinimumAnyEndpointDistance = 1;
 
-    [MenuItem("Renk Tasi/60 Seviyeyi Otomatik Uret - Full Fill")]
-    public static void GenerateAll60Levels()
+    // Zorluk basina level sayisi (toplam 300 level).
+    private const int LevelsPerDifficulty = 100;
+
+    [MenuItem("Renk Tasi/300 Seviyeyi Otomatik Uret - Full Fill (Easy+Normal+Hard)")]
+    public static void GenerateAll300Levels()
     {
         EnsureFoldersExist();
 
-        int saved = 0;
-        int failed = 0;
+        var totalResult = new GenerationResult();
 
-        for (int i = 1; i <= 20; i++)
+        // KRITIK: Tek-cozum dogrulamasi node-butceli oldugu icin artik
+        // asla sonsuza kadar takilmaz, ama 100 tane 9x9 Hard level icin
+        // yine de UZUN surebilir (Hard'i kendi menu ogesinden ayri
+        // calistirip gece boyu birakmak pratikte daha rahat olabilir).
+        try
         {
-            int colors = i <= 8 ? 4 : 5;
-            LevelData level = GenerateFullFillLevel(
-                $"Level_Easy_{i:D2}",
-                DifficultyMode.Easy,
-                5,
-                5,
-                colors,
-                1.50f);
+            GenerateDifficultyBatch(
+                DifficultyMode.Easy, "Easy", 5, 5, 1.50f,
+                progressOffset: 0, progressTotal: LevelsPerDifficulty * 3,
+                result: totalResult);
 
-            if (level == null)
+            if (!totalResult.Cancelled)
             {
-                failed++;
-                continue;
+                GenerateDifficultyBatch(
+                    DifficultyMode.Normal, "Normal", 7, 7, 1.25f,
+                    progressOffset: LevelsPerDifficulty, progressTotal: LevelsPerDifficulty * 3,
+                    result: totalResult);
             }
 
-            SaveLevelAsset(level, "Easy", $"Level_Easy_{i:D2}");
-            saved++;
+            if (!totalResult.Cancelled)
+            {
+                GenerateDifficultyBatch(
+                    DifficultyMode.Hard, "Hard", 9, 9, 1.15f,
+                    progressOffset: LevelsPerDifficulty * 2, progressTotal: LevelsPerDifficulty * 3,
+                    result: totalResult);
+            }
         }
-
-        for (int i = 1; i <= 20; i++)
+        finally
         {
-            int colors = i <= 10 ? 6 : 7;
-            LevelData level = GenerateFullFillLevel(
-                $"Level_Normal_{i:D2}",
-                DifficultyMode.Normal,
-                7,
-                7,
-                colors,
-                1.25f);
-
-            if (level == null)
-            {
-                failed++;
-                continue;
-            }
-
-            SaveLevelAsset(level, "Normal", $"Level_Normal_{i:D2}");
-            saved++;
-        }
-
-        for (int i = 1; i <= 20; i++)
-        {
-            int colors = i <= 10 ? 8 : 9;
-            LevelData level = GenerateFullFillLevel(
-                $"Level_Hard_{i:D2}",
-                DifficultyMode.Hard,
-                9,
-                9,
-                colors,
-                1.15f);
-
-            if (level == null)
-            {
-                failed++;
-                continue;
-            }
-
-            SaveLevelAsset(level, "Hard", $"Level_Hard_{i:D2}");
-            saved++;
+            EditorUtility.ClearProgressBar();
         }
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
-        string message =
-            $"Uretim tamamlandi.\n\n" +
-            $"Kaydedilen: {saved}/60\n" +
-            $"Basarisiz: {failed}\n\n" +
-            $"Sadece %100 dolu ve cozum yolu dogrulamasindan gecen leveller kaydedildi.";
+        ShowResultDialog(totalResult, expectedTotal: LevelsPerDifficulty * 3);
+    }
+
+    // Tek tek zorluk uretmek istersen (ornegin sadece Hard'i gece boyu
+    // calistirmak icin) bu menu ogelerini kullanabilirsin.
+
+    [MenuItem("Renk Tasi/Sadece Easy Uret (100)")]
+    public static void GenerateEasyOnly()
+    {
+        EnsureFoldersExist();
+        var result = new GenerationResult();
+
+        try
+        {
+            GenerateDifficultyBatch(
+                DifficultyMode.Easy, "Easy", 5, 5, 1.50f,
+                progressOffset: 0, progressTotal: LevelsPerDifficulty,
+                result: result);
+        }
+        finally
+        {
+            EditorUtility.ClearProgressBar();
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        ShowResultDialog(result, expectedTotal: LevelsPerDifficulty);
+    }
+
+    [MenuItem("Renk Tasi/Sadece Normal Uret (100)")]
+    public static void GenerateNormalOnly()
+    {
+        EnsureFoldersExist();
+        var result = new GenerationResult();
+
+        try
+        {
+            GenerateDifficultyBatch(
+                DifficultyMode.Normal, "Normal", 7, 7, 1.25f,
+                progressOffset: 0, progressTotal: LevelsPerDifficulty,
+                result: result);
+        }
+        finally
+        {
+            EditorUtility.ClearProgressBar();
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        ShowResultDialog(result, expectedTotal: LevelsPerDifficulty);
+    }
+
+    [MenuItem("Renk Tasi/Sadece Hard Uret (100)")]
+    public static void GenerateHardOnly()
+    {
+        EnsureFoldersExist();
+        var result = new GenerationResult();
+
+        try
+        {
+            GenerateDifficultyBatch(
+                DifficultyMode.Hard, "Hard", 9, 9, 1.15f,
+                progressOffset: 0, progressTotal: LevelsPerDifficulty,
+                result: result);
+        }
+        finally
+        {
+            EditorUtility.ClearProgressBar();
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        ShowResultDialog(result, expectedTotal: LevelsPerDifficulty);
+    }
+
+    private class GenerationResult
+    {
+        public int Saved;
+        public int Failed;
+        public bool Cancelled;
+    }
+
+    private static void GenerateDifficultyBatch(
+        DifficultyMode diff,
+        string folderName,
+        int width,
+        int height,
+        float moveMultiplier,
+        int progressOffset,
+        int progressTotal,
+        GenerationResult result)
+    {
+        for (int i = 1; i <= LevelsPerDifficulty; i++)
+        {
+            result.Cancelled = EditorUtility.DisplayCancelableProgressBar(
+                "Renk Tasi - Level Uretiliyor",
+                $"{folderName} {i}/{LevelsPerDifficulty}",
+                (progressOffset + i - 1) / (float)progressTotal);
+
+            if (result.Cancelled) return;
+
+            int colors = GetColorCountForLevel(diff, i);
+
+            LevelData level = GenerateFullFillLevel(
+                $"Level_{folderName}_{i:D2}",
+                diff,
+                width,
+                height,
+                colors,
+                moveMultiplier);
+
+            if (level == null)
+            {
+                result.Failed++;
+                continue;
+            }
+
+            SaveLevelAsset(level, folderName, $"Level_{folderName}_{i:D2}");
+            result.Saved++;
+        }
+    }
+
+    /// <summary>
+    /// 100 leveli tek bir sabit renk sayisiyla degil, kademeli zorlukla
+    /// uretmek icin renk sayisini seviyeye gore olcekler.
+    /// Grid basina maksimum makul renk sayisi = (genislik*yukseklik) / 4
+    /// (her renk en az MinimumPathCells=4 hucre kapladigi icin).
+    /// 5x5 = 25 hucre -> max ~6 renk
+    /// 7x7 = 49 hucre -> max ~12 renk (solver performansi icin dusuk tutuldu)
+    /// 9x9 = 81 hucre -> max ~20 renk (ayni sekilde performans icin sinirlandi)
+    /// </summary>
+    private static int GetColorCountForLevel(DifficultyMode diff, int levelNumber)
+    {
+        // 1..100 araligini 4 esit dilime bol (1-25, 26-50, 51-75, 76-100).
+        int tier = Mathf.Clamp((levelNumber - 1) / 25, 0, 3);
+
+        switch (diff)
+        {
+            case DifficultyMode.Easy:
+                // 5x5 grid: 3 -> 4 -> 5 -> 6 renk
+                return 3 + tier;
+
+            case DifficultyMode.Normal:
+                // 7x7 grid: 5 -> 6 -> 7 -> 8 renk
+                return 5 + tier;
+
+            default: // Hard
+                // 9x9 grid: 6 -> 7 -> 8 -> 9 renk
+                // (solver maliyeti renk arttikca hizla buyudugu icin
+                // Hard'da 9'un ustune cikilmiyor)
+                return 6 + tier;
+        }
+    }
+
+    private static void ShowResultDialog(GenerationResult result, int expectedTotal)
+    {
+        string message = result.Cancelled
+            ? $"Uretim iptal edildi.\n\nO ana kadar kaydedilen: {result.Saved}\nBasarisiz: {result.Failed}"
+            : $"Uretim tamamlandi.\n\n" +
+              $"Kaydedilen: {result.Saved}/{expectedTotal}\n" +
+              $"Basarisiz: {result.Failed}\n\n" +
+              $"Sadece %100 dolu, en az 1 cozumlu ve endpoint mesafesi/viraj " +
+              $"dogrulamasindan gecen leveller kaydedildi.";
 
         EditorUtility.DisplayDialog("Renk Tasi", message, "Tamam");
     }
@@ -158,12 +283,23 @@ public class LevelGeneratorEditor : EditorWindow
     {
         int targetCellCount = width * height;
 
+        int failSpaceFill = 0;
+        int failSplit = 0;
+        int failShape = 0;
+        int failCompleteSolution = 0;
+        int failCoverage = 0;
+        int failNoSolution = 0;
+        int failBudgetExceeded = 0;
+
         for (int attempt = 1; attempt <= MaxLevelAttempts; attempt++)
         {
             List<Vector2Int> fullSolution = GenerateSpaceFillingPath(width, height);
 
             if (fullSolution == null || fullSolution.Count != targetCellCount)
+            {
+                failSpaceFill++;
                 continue;
+            }
 
             List<List<Vector2Int>> paths = SplitIntoSegmentsWithMinLength(
                 fullSolution,
@@ -171,13 +307,19 @@ public class LevelGeneratorEditor : EditorWindow
                 minLength: MinimumPathCells);
 
             if (paths == null || paths.Count != numColors)
+            {
+                failSplit++;
                 continue;
+            }
 
             // Do not accept tiny / nearly straight routes.
             // This specifically fixes cases such as two same-color nodes
             // touching each other or being connectable in one move.
             if (!ValidatePathShapesAndEndpointSpacing(paths))
+            {
+                failShape++;
                 continue;
+            }
 
             int[,] ownerGrid = BuildOwnerGrid(paths, width, height);
 
@@ -185,11 +327,12 @@ public class LevelGeneratorEditor : EditorWindow
             // sadece ownerGrid dolu mu degil, tum path hucreleri:
             // - grid icinde mi
             // - unique mi
-            // - ard���k olarak dik komsu mu
+            // - ard���k olarak dik komsu mu
             // - her renk en az 2 hucre mi
             // kontrol edilir.
             if (!ValidateCompleteSolution(paths, ownerGrid, width, height))
             {
+                failCompleteSolution++;
                 continue;
             }
 
@@ -220,7 +363,46 @@ public class LevelGeneratorEditor : EditorWindow
             if (!ValidateLevelAssetCoverage(level, paths, ownerGrid, width, height))
             {
                 Object.DestroyImmediate(level);
+                failCoverage++;
                 continue;
+            }
+
+            // EN AZ 1 COZUM GARANTISI (tekillik ARANMIYOR).
+            // Zaten 'paths' listesinin kendisi board'u %100 dolduran
+            // gecerli bir cozumdur (ValidateCompleteSolution bunu az
+            // once dogruladi) - yani cozumun VAR OLDUGU inşa geregi
+            // zaten garanti. Bu solver cagrisi sadece ekstra bir
+            // guvenlik agi: ozel mekanikler (kilitli hucreler vs.)
+            // ileride degisirse diye "gercekten hicbir cozum yok mu"
+            // diye tekrar kontrol ediyoruz. Birden fazla cozum olmasi
+            // artik SORUN DEGIL, o yuzden cap:1 yeterli (ilk cozumu
+            // bulunca arama durur, cok daha hizli).
+            if (LevelSolver.CanVerifyUniqueness(level))
+            {
+                int solutionCount = LevelSolver.CountFullFillSolutions(
+                    level,
+                    cap: 1,
+                    nodeBudget: GetNodeBudgetFor(width, height));
+
+                if (solutionCount == LevelSolver.BudgetExceeded)
+                {
+                    Object.DestroyImmediate(level);
+                    failBudgetExceeded++;
+                    continue;
+                }
+
+                if (solutionCount < 1)
+                {
+                    Object.DestroyImmediate(level);
+                    failNoSolution++;
+                    continue;
+                }
+            }
+            else
+            {
+                Debug.LogWarning(
+                    $"[{id}] Bridge/extraEndpoint icerdigi icin cozum " +
+                    "varligi dogrulanamadi. Level yine de kaydediliyor.");
             }
 
             return level;
@@ -228,7 +410,13 @@ public class LevelGeneratorEditor : EditorWindow
 
         Debug.LogError(
             $"[{id}] {MaxLevelAttempts} denemede gecerli %100 full-fill + " +
-            "endpoint mesafesi + en az 2 virajli path seviyesi uretilemedi. Kaydedilmiyor.");
+            "endpoint mesafesi + en az 1 virajli path seviyesi " +
+            "uretilemedi. Kaydedilmiyor.\n" +
+            $"Teshis -> spaceFill:{failSpaceFill} split:{failSplit} " +
+            $"shape:{failShape} completeSolution:{failCompleteSolution} " +
+            $"coverage:{failCoverage} " +
+            $"COZUM_YOK:{failNoSolution} " +
+            $"BUDGET_ASILDI:{failBudgetExceeded}");
 
         return null;
     }
@@ -258,25 +446,11 @@ public class LevelGeneratorEditor : EditorWindow
                 extraEndpoints = new List<Vector2Int>()
             };
 
-            // Hard'da cok uclu renk mekanigi icin,
-            // yolun icinden endpoint adayini sec.
-            // Bu mevcut runtime PathDrawer tarafinda destekleniyorsa aktif kullanilabilir.
-            if (diff == DifficultyMode.Hard &&
-                (i == 0 || i == 1) &&
-                path.Count >= 8)
-            {
-                int extraIndex = Mathf.Clamp(
-                    path.Count / 2,
-                    2,
-                    path.Count - 3);
-
-                // Endpoint ayni path'e ait olmali.
-                // Duplicate guard.
-                Vector2Int extra = path[extraIndex];
-
-                if (extra != pair.startPos && extra != pair.endPos)
-                    pair.extraEndpoints.Add(extra);
-            }
+            // NOT: Onceki surumde Hard modda 3+ uclu renk (extraEndpoints)
+            // mekanigi buradaydi. Bu mekanik "her hucre tek bir renge ait"
+            // varsayimini bozdugu icin LevelSolver'in tek-cozum dogrulamasi
+            // yapmasini imkansiz kiliyordu; bu yuzden kaldirildi. Tekrar
+            // eklemek istersen, LevelSolver'i buna gore genisletmen gerekir.
 
             level.colorPairs.Add(pair);
         }
@@ -303,15 +477,11 @@ public class LevelGeneratorEditor : EditorWindow
         AssignLockedCells(level, paths, lockTarget);
         AssignIceCells(level, paths, lockTarget, iceTarget);
 
-        if (diff == DifficultyMode.Hard)
-        {
-            AssignBridgeCells(
-                level,
-                ownerGrid,
-                width,
-                height,
-                bridgeTarget: 2);
-        }
+        // NOT: AssignBridgeCells cagrisi bilerek KALDIRILDI. Bridge
+        // hucreleri iki farkli rengin ayni hucreyi paylasmasina izin
+        // verir, bu da "board'u tam dolduran TEK bir renk-hucre eslesmesi
+        // var" garantisini imkansiz kilar. Tek-cozum garantisi istedigin
+        // surece bu mekanigi kapali tut.
 
         // Mix burada bilerek uretilmiyor.
         // Runtime mix mekanigi yeni result network/endpoints davranisini
@@ -410,86 +580,6 @@ public class LevelGeneratorEditor : EditorWindow
         }
 
         return invalid;
-    }
-
-    private static void AssignBridgeCells(
-        LevelData level,
-        int[,] ownerGrid,
-        int width,
-        int height,
-        int bridgeTarget)
-    {
-        List<BridgeCandidate> candidates = new List<BridgeCandidate>();
-
-        for (int x = 1; x < width - 1; x++)
-        {
-            for (int y = 1; y < height - 1; y++)
-            {
-                int owner = ownerGrid[x, y];
-                if (owner <= 0)
-                    continue;
-
-                HashSet<int> neighborOwners = new HashSet<int>();
-                foreach (Vector2Int dir in Dirs4)
-                {
-                    int nOwner = ownerGrid[x + dir.x, y + dir.y];
-
-                    if (nOwner > 0 && nOwner != owner)
-                        neighborOwners.Add(nOwner);
-                }
-
-                if (neighborOwners.Count > 0)
-                {
-                    candidates.Add(new BridgeCandidate
-                    {
-                        position = new Vector2Int(x, y),
-                        foreignNeighborCount = neighborOwners.Count
-                    });
-                }
-            }
-        }
-
-        ShuffleList(candidates);
-        candidates.Sort(
-            (a, b) => b.foreignNeighborCount.CompareTo(a.foreignNeighborCount));
-
-        HashSet<Vector2Int> used = new HashSet<Vector2Int>();
-
-        foreach (Vector2Int locked in GetLockedPositions(level))
-            used.Add(locked);
-
-        foreach (Vector2Int ice in level.iceCells)
-            used.Add(ice);
-
-        int taken = 0;
-
-        foreach (BridgeCandidate candidate in candidates)
-        {
-            if (taken >= bridgeTarget)
-                break;
-
-            if (used.Contains(candidate.position))
-                continue;
-
-            level.bridgeCells.Add(candidate.position);
-            used.Add(candidate.position);
-            taken++;
-        }
-
-        // Tasarimda bridge hedefi oncelikli olmaktan cikmasin:
-        // yeterli aday yoksa level yine kaydedilebilir, ama coverage bozulmaz.
-        if (taken < bridgeTarget)
-        {
-            Debug.LogWarning(
-                $"[{level.levelId}] Bridge hedefi {taken}/{bridgeTarget} olarak kaldi. " +
-                "Full-fill korunarak ozel mekanik sayisi dusuruldu.");
-        }
-    }
-
-    private static IEnumerable<Vector2Int> GetLockedPositions(LevelData level)
-    {
-        foreach (LockedCellData locked in level.lockedCells)
-            yield return locked.position;
     }
 
     // ============================================================
@@ -994,7 +1084,7 @@ public class LevelGeneratorEditor : EditorWindow
                 return false;
         }
 
-        // Special cell'ler bos bir h�creye yerlestirilemez.
+        // Special cell'ler bos bir h�creye yerlestirilemez.
         if (!AllSpecialCellsBelongToSolution(
                 level,
                 ownerGrid,
@@ -1034,6 +1124,21 @@ public class LevelGeneratorEditor : EditorWindow
         return true;
     }
 
+    /// <summary>
+    /// Grid buyudukce olasi cozum uzayi katlanarak buyudugu icin solver'a
+    /// verilen node butcesi de grid boyutuna gore olceklendirilir. Bu
+    /// sayilar deneme-yanilma ile ayarlanabilir; amac Editor'i kilitlemeden
+    /// makul surede sonuc almak.
+    /// </summary>
+    private static int GetNodeBudgetFor(int width, int height)
+    {
+        int cellCount = width * height;
+
+        if (cellCount <= 25) return 150_000;   // 5x5 (Easy)
+        if (cellCount <= 49) return 400_000;   // 7x7 (Normal)
+        return 800_000;                        // 9x9 (Hard)
+    }
+
     // ============================================================
     // HELPERS
     // ============================================================
@@ -1067,12 +1172,6 @@ public class LevelGeneratorEditor : EditorWindow
             list[i] = list[randomIndex];
             list[randomIndex] = temp;
         }
-    }
-
-    private struct BridgeCandidate
-    {
-        public Vector2Int position;
-        public int foreignNeighborCount;
     }
 
     // ============================================================
@@ -1115,5 +1214,49 @@ public class LevelGeneratorEditor : EditorWindow
             AssetDatabase.DeleteAsset(path);
 
         AssetDatabase.CreateAsset(level, path);
+    }
+
+    [MenuItem("Renk Tasi/Mevcut Tum Levellerin Renklerini Guncelle")]
+    public static void UpdateColorsOfExistingLevels()
+    {
+        string[] guids = AssetDatabase.FindAssets("t:LevelData", new[] { "Assets/Resources/Levels" });
+        int updatedCount = 0;
+
+        foreach (string guid in guids)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            LevelData level = AssetDatabase.LoadAssetAtPath<LevelData>(path);
+
+            if (level == null) continue;
+
+            // 1. ColorPair renklerini sırayla yeni paletten ata
+            if (level.colorPairs != null)
+            {
+                for (int i = 0; i < level.colorPairs.Count; i++)
+                {
+                    level.colorPairs[i].color = ColorPalette[i % ColorPalette.Length];
+                }
+            }
+
+            // 2. Kilitli hucrelerin renklerini de eslesen renkle senkronize et
+            if (level.lockedCells != null && level.colorPairs != null)
+            {
+                for (int i = 0; i < level.lockedCells.Count; i++)
+                {
+                    if (i < level.colorPairs.Count)
+                    {
+                        level.lockedCells[i].allowedColor = level.colorPairs[i].color;
+                    }
+                }
+            }
+
+            EditorUtility.SetDirty(level);
+            updatedCount++;
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        EditorUtility.DisplayDialog("Renk Tasi", $"{updatedCount} adet levelin rengi yeni palete gore guncellendi!", "Tamam");
     }
 }
