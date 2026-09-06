@@ -82,7 +82,7 @@ Proje; **Easy / Normal / Hard** olmak üzere üç zorluk modu, mod başına 100 
 | Dil | C# |
 | Veri Modeli | ScriptableObject tabanlı `LevelData` |
 | Kalıcı Depolama | `PlayerPrefs` |
-| Mimari Desen | Event-driven (static C# event'ler ile gevşek bağlı bileşenler) |
+| Mimari Desen | Event-driven |
 
 ---
 ##  Geliştirici Ekip
